@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { resolve, join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { readdirSync } from 'fs';
 import { config } from 'dotenv';
 import { loadScenario } from '../loader/scenario-loader.js';
 import { runScenario } from './agent-runner.js';
 import { mcpData, mcpWeb } from '../mcp/client.js';
+import { generateReportFromFiles } from '../report/generator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -12,13 +14,92 @@ const PROJECT_ROOT = resolve(__dirname, '../../../..');
 
 config({ path: resolve(PROJECT_ROOT, '.env') });
 
+function expandGlob(pattern: string): string[] {
+  const baseDir = dirname(pattern);
+  const filePattern = basename(pattern);
+  
+  if (!filePattern.includes('*')) {
+    return [pattern];
+  }
+  
+  try {
+    const files = readdirSync(baseDir);
+    const regex = new RegExp('^' + filePattern.replace(/\*/g, '.*') + '$');
+    return files
+      .filter(f => regex.test(f))
+      .map(f => join(baseDir, f));
+  } catch {
+    return [];
+  }
+}
+
+async function runReportCommand(args: string[]) {
+  if (args.length === 0) {
+    console.error('Usage: npm run agent report <jsonl-files...>');
+    console.error('Example: npm run agent report out/*.jsonl');
+    console.error('Example: npm run agent report out/login-and-dashboard_*.jsonl');
+    process.exit(1);
+  }
+
+  console.log('Agentic Testing Framework - Report Generator');
+  console.log('============================================\n');
+
+  const allFiles: string[] = [];
+  for (const pattern of args) {
+    const resolvedPattern = resolve(PROJECT_ROOT, pattern);
+    const files = expandGlob(resolvedPattern);
+    allFiles.push(...files);
+  }
+
+  if (allFiles.length === 0) {
+    console.error('✗ No JSONL files found matching pattern(s)');
+    process.exit(1);
+  }
+
+  console.log(`Found ${allFiles.length} JSONL file(s):`);
+  allFiles.forEach(f => console.log(`  - ${basename(f)}`));
+
+  const outputDir = resolve(PROJECT_ROOT, 'out', 'reports');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const outputPath = join(outputDir, `report_${timestamp}.html`);
+
+  console.log('\nGenerating report...');
+
+  try {
+    const reportPath = generateReportFromFiles(allFiles, {
+      outputPath,
+      title: 'Agentic Testing Report',
+      includeDetails: true
+    });
+
+    console.log(`\n✓ Report generated successfully!`);
+    console.log(`  Output: ${reportPath}`);
+    console.log(`\nOpen in browser:`);
+    console.log(`  open ${reportPath}`);
+    process.exit(0);
+  } catch (error) {
+    console.error('\n✗ Failed to generate report:', error);
+    process.exit(1);
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
     console.error('Usage: npm run agent <scenario.yaml>');
-    console.error('Example: npm run agent scenarios/smoke/login-and-dashboard.yaml');
+    console.error('       npm run agent report <jsonl-files...>');
+    console.error('');
+    console.error('Examples:');
+    console.error('  npm run agent scenarios/smoke/login-and-dashboard.yaml');
+    console.error('  npm run agent report out/*.jsonl');
+    console.error('  npm run agent report out/login-and-dashboard_*.jsonl');
     process.exit(1);
+  }
+
+  if (args[0] === 'report') {
+    await runReportCommand(args.slice(1));
+    return;
   }
 
   const scenarioPath = resolve(PROJECT_ROOT, args[0]);
