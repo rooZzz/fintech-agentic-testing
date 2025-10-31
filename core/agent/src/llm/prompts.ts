@@ -25,7 +25,9 @@ IMPORTANT RULES:
 - Only click visible, enabled elements
 - Prefer elements with data-testid attributes
 - Use testId parameter when available (e.g., {"testId": "login-button"})
-- For inputs, use selector like [data-testid="email-input"]
+- For text inputs, use selector like [data-testid="email-input"]
+- For SELECT dropdowns, use ui.act.type to enter the value (e.g., type "5" to select 5 years, type "personal" to select personal loan)
+- Do NOT click select elements - always TYPE the value you want to select
 - If stuck, try a different approach
 - Be concise in reasoning (1-2 sentences)
 
@@ -38,12 +40,21 @@ Respond ONLY with valid JSON in this exact format:
   }
 }
 
-OR for typing:
+OR for typing into text inputs:
 {
   "reasoning": "entering email address",
   "action": {
     "type": "ui.act.type",
     "params": {"selector": "[data-testid='email-input']", "text": "value"}
+  }
+}
+
+OR for selecting from dropdowns (select elements):
+{
+  "reasoning": "selecting loan term of 5 years",
+  "action": {
+    "type": "ui.act.type",
+    "params": {"testId": "loan-term-select", "text": "5"}
   }
 }`;
 }

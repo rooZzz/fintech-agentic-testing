@@ -23,34 +23,48 @@ export function parseJSONL(filePath: string): JSONLEntry[] {
   });
 }
 
-export function parseScenario(filePath: string): ParsedScenario {
-  const entries = parseJSONL(filePath);
-  
-  const runStart = entries.find(e => e.type === 'run_start') as RunStartEntry;
-  const scenarioStart = entries.find(e => e.type === 'scenario_start') as ScenarioStartEntry;
-  const scenarioEnd = entries.find(e => e.type === 'scenario_end') as ScenarioEndEntry;
-  const steps = entries.filter(e => e.type === 'step') as StepEntry[];
-  const preconditions = entries.filter(e => e.type === 'precondition') as PreconditionEntry[];
-  
-  if (!runStart || !scenarioStart || !scenarioEnd) {
-    throw new Error(`Invalid JSONL file: missing required entries in ${filePath}`);
+export function parseScenario(filePath: string): ParsedScenario | null {
+  try {
+    const entries = parseJSONL(filePath);
+    
+    const runStart = entries.find(e => e.type === 'run_start') as RunStartEntry;
+    const scenarioStart = entries.find(e => e.type === 'scenario_start') as ScenarioStartEntry;
+    const scenarioEnd = entries.find(e => e.type === 'scenario_end') as ScenarioEndEntry;
+    const steps = entries.filter(e => e.type === 'step') as StepEntry[];
+    const preconditions = entries.filter(e => e.type === 'precondition') as PreconditionEntry[];
+    
+    if (!runStart || !scenarioStart || !scenarioEnd) {
+      console.warn(`⚠ Skipping incomplete run: ${filePath} (missing required entries)`);
+      return null;
+    }
+    
+    return {
+      runId: runStart.runId,
+      scenarioId: scenarioEnd.scenarioId,
+      status: scenarioEnd.status,
+      steps,
+      preconditions,
+      totalSteps: scenarioEnd.steps,
+      duration: scenarioEnd.duration,
+      totalCost: scenarioEnd.totalCost,
+      startTime: new Date(scenarioStart.timestamp),
+      endTime: new Date(scenarioEnd.timestamp)
+    };
+  } catch (error) {
+    console.warn(`⚠ Skipping invalid file: ${filePath} (${error instanceof Error ? error.message : String(error)})`);
+    return null;
   }
-  
-  return {
-    runId: runStart.runId,
-    scenarioId: scenarioEnd.scenarioId,
-    status: scenarioEnd.status,
-    steps,
-    preconditions,
-    totalSteps: scenarioEnd.steps,
-    duration: scenarioEnd.duration,
-    totalCost: scenarioEnd.totalCost,
-    startTime: new Date(scenarioStart.timestamp),
-    endTime: new Date(scenarioEnd.timestamp)
-  };
 }
 
 export function parseMultipleScenarios(filePaths: string[]): ParsedScenario[] {
-  return filePaths.map(parseScenario);
+  const scenarios = filePaths.map(parseScenario).filter((s): s is ParsedScenario => s !== null);
+  
+  if (scenarios.length === 0) {
+    throw new Error('No valid scenario files found. All files were incomplete or invalid.');
+  }
+  
+  console.log(`\n✓ Parsed ${scenarios.length} valid scenario(s) from ${filePaths.length} file(s)\n`);
+  
+  return scenarios;
 }
 

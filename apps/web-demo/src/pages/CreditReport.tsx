@@ -1,14 +1,6 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/auth/AuthContext';
+import { Header } from '@/components/Header';
 
 export const CreditReport = () => {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   const tradelines = [
     {
@@ -46,26 +38,7 @@ export const CreditReport = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        <header className="bg-white shadow-sm border-b border-gray-200 mb-8 rounded-lg py-4 px-6" role="banner">
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => navigate('/dashboard')}
-              data-testid="back-to-dashboard"
-              aria-label="Back to dashboard"
-              className="text-fintech-accent hover:text-blue-700 font-medium transition"
-            >
-              ← Back to Dashboard
-            </button>
-            <button
-              onClick={handleLogout}
-              data-testid="logout-button"
-              aria-label="Log out"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
-            >
-              Logout
-            </button>
-          </div>
-        </header>
+        <Header />
 
         <main role="main">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Credit Report</h1>

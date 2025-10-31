@@ -1,14 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/auth/AuthContext';
+import { Header } from '@/components/Header';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
-  const { session, logout } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   const navigationTiles = [
     {
@@ -18,6 +12,15 @@ export const Dashboard = () => {
       description: 'View your detailed credit report',
       icon: '📊',
       action: () => navigate('/credit-report'),
+      enabled: true,
+    },
+    {
+      id: 'loans',
+      testId: 'view-loans',
+      title: 'Loans',
+      description: 'Find and apply for loans',
+      icon: '💰',
+      action: () => navigate('/loans'),
       enabled: true,
     },
     {
@@ -70,22 +73,7 @@ export const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        <header className="bg-white shadow-sm border-b border-gray-200 mb-8 rounded-lg py-4 px-6" role="banner">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">{session?.user.email}</span>
-              <button
-                onClick={handleLogout}
-                data-testid="logout-button"
-                aria-label="Log out"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+        <Header />
 
         <main role="main">
         <div className="mb-8">

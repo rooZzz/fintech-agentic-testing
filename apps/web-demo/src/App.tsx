@@ -5,6 +5,9 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
 import { Dashboard } from '@/pages/Dashboard';
 import { CreditReport } from '@/pages/CreditReport';
+import { Loans } from '@/pages/Loans';
+import { LoanResults } from '@/pages/LoanResults';
+import { LoanConfirmation } from '@/pages/LoanConfirmation';
 
 const RootRedirect = () => {
   const { isAuthenticated } = useAuth();
@@ -41,6 +44,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <CreditReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans"
+            element={
+              <ProtectedRoute>
+                <Loans />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans/results"
+            element={
+              <ProtectedRoute>
+                <LoanResults />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/loans/confirmation/:loanId"
+            element={
+              <ProtectedRoute>
+                <LoanConfirmation />
               </ProtectedRoute>
             }
           />

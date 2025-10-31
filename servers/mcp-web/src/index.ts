@@ -170,11 +170,17 @@ app.post('/ui/act/type', async (req, res) => {
       return res.status(400).json({ error: 'Must provide selector, testId, or nodeId' });
     }
     
-    if (clear) {
-      await ctx.page.fill(targetSelector, '');
-    }
+    const element = await ctx.page.locator(targetSelector).first();
+    const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase()).catch(() => '');
     
-    await ctx.page.type(targetSelector, text, { timeout: 5000 });
+    if (tagName === 'select') {
+      await element.selectOption(text, { timeout: 5000 });
+    } else {
+      if (clear) {
+        await ctx.page.fill(targetSelector, '');
+      }
+      await ctx.page.type(targetSelector, text, { timeout: 5000 });
+    }
     
     const response: TypeResponse = {
       ok: true,

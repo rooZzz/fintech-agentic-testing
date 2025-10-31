@@ -1,6 +1,17 @@
 import express from 'express';
 import cors from 'cors';
-import { createUser, getUserById, getUserByEmail, resetAllUsers, getUserCount } from './factory.js';
+import { 
+  createUser, 
+  getUserById, 
+  getUserByEmail, 
+  resetAllUsers, 
+  getUserCount,
+  seedLoans,
+  listLoans,
+  getLoanById,
+  resetAllLoans,
+  getLoanCount
+} from './factory.js';
 import { generateToken, validateCredentials } from './auth.js';
 import type {
   CreateUserRequest,
@@ -10,7 +21,11 @@ import type {
   GetUserRequest,
   GetUserResponse,
   ResetRequest,
-  ResetResponse
+  ResetResponse,
+  SeedLoansRequest,
+  SeedLoansResponse,
+  ListLoansRequest,
+  ListLoansResponse
 } from './types.js';
 
 const app = express();
@@ -122,10 +137,73 @@ app.post('/data/reset', (req, res) => {
   }
 });
 
+app.post('/data/loan/seed', (req, res) => {
+  try {
+    const { count = 7 } = req.body as SeedLoansRequest;
+    
+    const loans = seedLoans(count);
+    
+    const response: SeedLoansResponse = {
+      loans,
+      count: loans.length
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/loan/list', (req, res) => {
+  try {
+    const { amount, term, loanType } = req.body as ListLoansRequest;
+    
+    const loans = listLoans({ amount, term, loanType });
+    
+    const response: ListLoansResponse = {
+      loans
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/loan/get', (req, res) => {
+  try {
+    const { id } = req.body as { id: string };
+    
+    if (!id) {
+      return res.status(400).json({ error: 'Loan ID is required.' });
+    }
+    
+    const loan = getLoanById(id);
+    
+    res.json({ loan });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/loan/reset', (req, res) => {
+  try {
+    resetAllLoans();
+    
+    res.json({
+      ok: true,
+      message: 'Loan products reset successfully.'
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, ok: false });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     ok: true, 
     users: getUserCount(),
+    loans: getLoanCount(),
     timestamp: new Date().toISOString()
   });
 });

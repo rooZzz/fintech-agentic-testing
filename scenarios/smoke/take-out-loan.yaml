@@ -1,0 +1,25 @@
+version: "0.1"
+id: take-out-loan
+goal:
+  description: "Navigate to loans, search for a loan, select an offer, and reach confirmation"
+  success:
+    - heading_text: "Loan Application Submitted"
+    - element_visible: "loan-confirmation-details"
+
+context:
+  start_url: "http://localhost:5173/dashboard"
+
+preconditions:
+  - mcp: "data.user.create"
+    params:
+      plan: "plus"
+      requires2FA: false
+    store_as: "testUser"
+  - mcp: "data.loan.seed"
+    params:
+      count: 7
+
+constraints:
+  max_steps: 30
+  max_cost_usd: 0.75
+

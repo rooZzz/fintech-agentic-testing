@@ -190,6 +190,12 @@ async function runPreconditions(
       result = await mcpData.createUser(precondition.params as { plan: string; requires2FA: boolean });
     } else if (precondition.mcp === 'data.reset') {
       result = await mcpData.reset(precondition.params);
+    } else if (precondition.mcp === 'data.loan.seed') {
+      result = await mcpData.seedLoans(precondition.params as { count?: number });
+    } else if (precondition.mcp === 'data.loan.list') {
+      result = await mcpData.listLoans(precondition.params as { amount?: number; term?: number; loanType?: string });
+    } else if (precondition.mcp === 'data.loan.reset') {
+      result = await mcpData.resetLoans();
     } else {
       throw new Error(`Unknown precondition MCP: ${precondition.mcp}`);
     }

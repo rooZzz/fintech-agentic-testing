@@ -57,3 +57,38 @@ export interface ResetResponse {
   message: string;
 }
 
+export type LoanType = 'personal' | 'auto' | 'mortgage';
+
+export interface LoanProduct {
+  id: string;
+  lenderName: string;
+  apr: number;
+  monthlyPayment: number;
+  totalInterest: number;
+  loanType: LoanType;
+  minAmount: number;
+  maxAmount: number;
+  minTerm: number;
+  maxTerm: number;
+  createdAt: string;
+}
+
+export interface SeedLoansRequest {
+  count?: number;
+}
+
+export interface SeedLoansResponse {
+  loans: LoanProduct[];
+  count: number;
+}
+
+export interface ListLoansRequest {
+  amount?: number;
+  term?: number;
+  loanType?: LoanType;
+}
+
+export interface ListLoansResponse {
+  loans: LoanProduct[];
+}
+

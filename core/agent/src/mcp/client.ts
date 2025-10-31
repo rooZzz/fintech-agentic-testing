@@ -64,6 +64,29 @@ export const mcpData = {
     return mcpRequest(MCP_DATA_URL, '/data/reset', params);
   },
 
+  async seedLoans(params: { count?: number } = {}): Promise<{
+    loans: any[];
+    count: number;
+  }> {
+    return mcpRequest(MCP_DATA_URL, '/data/loan/seed', params);
+  },
+
+  async listLoans(params: { amount?: number; term?: number; loanType?: string } = {}): Promise<{
+    loans: any[];
+  }> {
+    return mcpRequest(MCP_DATA_URL, '/data/loan/list', params);
+  },
+
+  async getLoan(params: { id: string }): Promise<{
+    loan: any;
+  }> {
+    return mcpRequest(MCP_DATA_URL, '/data/loan/get', params);
+  },
+
+  async resetLoans(): Promise<{ ok: boolean }> {
+    return mcpRequest(MCP_DATA_URL, '/data/loan/reset', {});
+  },
+
   async health(): Promise<{ ok: boolean }> {
     const response = await fetch(`${MCP_DATA_URL}/health`);
     return response.json() as Promise<{ ok: boolean }>;
