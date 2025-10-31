@@ -226,6 +226,39 @@ export function generateHTML(data: ReportData): string {
     .expandable.expanded .expandable-content {
       display: block;
     }
+    
+    .metrics-guide {
+      background: #f0f9ff;
+      border-left: 4px solid #3b82f6;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+    
+    .metrics-guide h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: #1e40af;
+    }
+    
+    .metrics-guide ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 0.5rem;
+    }
+    
+    .metrics-guide li {
+      font-size: 0.875rem;
+      color: #374151;
+      padding: 0.25rem 0;
+    }
+    
+    .metrics-guide strong {
+      color: #1f2937;
+    }
   </style>
 </head>
 <body>
@@ -309,6 +342,15 @@ export function generateHTML(data: ReportData): string {
     
     <div class="section">
       <h2>Scenario Results</h2>
+      <div class="metrics-guide">
+        <h3>Metric Definitions</h3>
+        <ul>
+          <li><strong>Click Entropy</strong>: How confused users are (low = everyone takes same path, high = clicking randomly)</li>
+          <li><strong>Backtracks</strong>: How many times users return to pages they already visited (indicates dead ends)</li>
+          <li><strong>Path Optimality</strong>: Actual steps vs shortest path (75% = good, 50% = twice as much work as needed)</li>
+          <li><strong>Time to First Action</strong>: Seconds until user clicks something (fast = obvious design, slow = hunting around)</li>
+        </ul>
+      </div>
       <table>
         <thead>
           <tr>
