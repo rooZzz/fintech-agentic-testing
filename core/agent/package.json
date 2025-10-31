@@ -1,0 +1,24 @@
+{
+  "name": "@fintech-agentic/agent",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx src/runner/cli.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openai": "^4.52.0",
+    "yaml": "^2.3.4",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^3.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
+

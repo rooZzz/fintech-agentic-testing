@@ -27,6 +27,15 @@ This project implements an agentic testing framework that uses autonomous agents
 - Health check endpoints for monitoring
 - Full manual testing validated with curl
 
+**Phase 3: Agent Core & Schema** - ✅ COMPLETE
+
+- YAML-driven scenario definitions with JSON Schema validation
+- OpenAI integration (GPT-4o-mini) with cost tracking
+- Autonomous agent execution loop with success detection
+- MCP client for browser and data operations
+- JSONL logging for complete execution traces
+- CLI runner with health checks and progress output
+
 ## Quick Start
 
 ### Prerequisites
@@ -66,6 +75,9 @@ Use any email and password to login. The authentication is mocked and will accep
 - `npm run start:mcp-data` - Start MCP-Data server (port 7002)
 - `npm run start:servers` - Start both MCP servers concurrently
 
+**Agent:**
+- `npm run agent <scenario.yaml>` - Run an agentic test scenario
+
 ## Project Structure
 
 ```
@@ -75,6 +87,10 @@ fintech-agentic-testing/
 ├── servers/
 │   ├── mcp-web/            # Playwright browser automation server
 │   └── mcp-data/           # Test data factory server
+├── core/
+│   └── agent/              # Autonomous agent orchestration
+├── scenarios/              # YAML test scenario definitions
+├── out/                    # JSONL execution logs
 ├── docs/                   # Documentation
 ├── package.json            # Root workspace configuration
 └── PROJECT_PLAN.md         # Comprehensive project plan
@@ -106,22 +122,50 @@ fintech-agentic-testing/
 - **Linting**: ESLint with jsx-a11y plugin
 - **Package Manager**: npm with workspaces
 
+## Running Agentic Tests
+
+With Phase 3 complete, you can now run autonomous agent tests:
+
+1. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` and add your OpenAI API key:
+   ```
+   OPENAI_API_KEY=sk-your-actual-key-here
+   ```
+
+2. **Start all services:**
+   ```bash
+   npm run dev                    # Terminal 1: Web demo
+   npm run start:servers          # Terminal 2: MCP servers
+   ```
+
+3. **Run a scenario:**
+   ```bash
+   npm run agent scenarios/smoke/login-and-dashboard.yaml
+   ```
+
+The agent will autonomously navigate the application, logging each step to `out/*.jsonl`.
+
 ## Next Steps
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the complete roadmap:
 
-- **Phase 2**: MCP Servers (Playwright wrapper, data factory)
-- **Phase 3**: Agent Core (YAML schemas, OpenAI integration)
-- **Phase 4**: Metrics & Reporting (entropy, path analysis)
-- **Phase 5**: Runner & Scenarios (CLI, test suite)
+- **Phase 4**: Metrics & Reporting (entropy, path analysis, HTML reports)
+- **Phase 5**: Runner & Scenarios (full CLI, multiple scenarios, parallel execution)
 - **Phase 6**: CI/CD & Hardening (GitHub Actions, documentation)
 
 ## Documentation
 
 - [PROJECT_PLAN.md](./PROJECT_PLAN.md) - Complete project specification
+- [PHASE2_COMPLETE.md](./PHASE2_COMPLETE.md) - Phase 2 completion report
+- [PHASE3_COMPLETE.md](./PHASE3_COMPLETE.md) - Phase 3 completion report
 - [docs/phase1-setup.md](./docs/phase1-setup.md) - Phase 1 setup guide
 - [docs/phase2-mcp-servers.md](./docs/phase2-mcp-servers.md) - Phase 2 MCP servers guide
 - [docs/phase2-test-results.md](./docs/phase2-test-results.md) - Phase 2 test results
+- [docs/phase3-agent-core.md](./docs/phase3-agent-core.md) - Phase 3 agent core guide
 - [apps/web-demo/README.md](./apps/web-demo/README.md) - Web demo documentation
 
 ## License

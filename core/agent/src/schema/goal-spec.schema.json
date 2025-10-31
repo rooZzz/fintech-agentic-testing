@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fintech-agentic-testing/goal-spec.schema.json",
+  "title": "Goal Specification",
+  "description": "Schema for agentic test goal specifications",
+  "type": "object",
+  "required": ["version", "id", "goal", "context", "constraints"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^0\\.1$",
+      "description": "Schema version"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique identifier for the scenario"
+    },
+    "goal": {
+      "type": "object",
+      "required": ["description", "success"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable goal description"
+        },
+        "success": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Success conditions (any condition met = success)",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              {
+                "required": ["url_contains"],
+                "properties": {
+                  "url_contains": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "required": ["element_visible"],
+                "properties": {
+                  "element_visible": {
+                    "type": "string",
+                    "description": "testId of element that must be visible"
+                  }
+                }
+              },
+              {
+                "required": ["heading_text"],
+                "properties": {
+                  "heading_text": {
+                    "type": "string",
+                    "description": "Text content of heading element"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": ["start_url"],
+      "properties": {
+        "start_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Initial URL to navigate to"
+        }
+      }
+    },
+    "preconditions": {
+      "type": "array",
+      "description": "Actions to run before starting the scenario",
+      "items": {
+        "type": "object",
+        "required": ["mcp", "params"],
+        "properties": {
+          "mcp": {
+            "type": "string",
+            "description": "MCP endpoint to call"
+          },
+          "params": {
+            "type": "object",
+            "description": "Parameters for the MCP call"
+          },
+          "store_as": {
+            "type": "string",
+            "description": "Variable name to store the result"
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "required": ["max_steps", "max_cost_usd"],
+      "properties": {
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of steps before failing"
+        },
+        "max_cost_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum cost in USD before stopping"
+        }
+      }
+    }
+  }
+}
+

@@ -5,7 +5,8 @@
   "type": "module",
   "workspaces": [
     "apps/*",
-    "servers/*"
+    "servers/*",
+    "core/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web-demo",
@@ -13,12 +14,14 @@
     "lint": "npm run lint --workspaces --if-present",
     "start:mcp-web": "npm run start --workspace=servers/mcp-web",
     "start:mcp-data": "npm run start --workspace=servers/mcp-data",
-    "start:servers": "concurrently \"npm run start:mcp-web\" \"npm run start:mcp-data\" --names \"web,data\" --prefix-colors \"cyan,magenta\""
+    "kill:servers": "bash scripts/kill-servers.sh",
+    "start:servers": "bash scripts/kill-servers.sh && concurrently \"npm run start:mcp-web\" \"npm run start:mcp-data\" --names \"web,data\" --prefix-colors \"cyan,magenta\"",
+    "agent": "npm run dev --workspace=core/agent"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
+    "concurrently": "^8.2.2",
+    "dotenv": "^17.2.3",
     "eslint": "^8.55.0",
-    "concurrently": "^8.2.2"
+    "typescript": "^5.3.0"
   }
 }
-

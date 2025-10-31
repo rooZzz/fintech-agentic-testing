@@ -246,9 +246,24 @@ app.post('/session/load', async (req, res) => {
   }
 });
 
+app.post('/browser/reset', async (req, res) => {
+  try {
+    const { contextId = 'default' } = req.body;
+    
+    await browserManager.closeContext(contextId);
+    
+    res.json({
+      ok: true,
+      message: `Context ${contextId} closed and reset`
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/health', (req, res) => {
-  res.json({ 
-    ok: true, 
+  res.json({
+    ok: true,
     contexts: browserManager.getContextCount(),
     timestamp: new Date().toISOString()
   });
