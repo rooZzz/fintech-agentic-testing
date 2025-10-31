@@ -1,0 +1,21 @@
+version: "0.1"
+id: get-to-credit-report
+goal:
+  description: "Login and reach credit report"
+  success:
+    - url_contains: "/credit-report"
+
+context:
+  start_url: "http://localhost:5173/login"
+
+preconditions:
+  - mcp: "data.user.create"
+    params:
+      plan: "plus"
+      requires2FA: false
+    store_as: "testUser"
+
+constraints:
+  max_steps: 20
+  max_cost_usd: 0.50
+

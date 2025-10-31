@@ -1,7 +1,7 @@
 version: "0.1"
-id: login-and-dashboard
+id: get-to-dashboard
 goal:
-  description: "Login and reach dashboard page"
+  description: "Login and reach dashboard"
   success:
     - url_contains: "/dashboard"
 
