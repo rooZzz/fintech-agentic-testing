@@ -37,6 +37,8 @@ export const Loans = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const isFormComplete = amount && term && loanType;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -125,7 +127,12 @@ export const Loans = () => {
               <button
                 type="submit"
                 data-testid="search-loans-button"
-                className="flex-1 bg-fintech-accent text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+                disabled={!isFormComplete}
+                className={`flex-1 px-6 py-3 rounded-lg font-medium transition ${
+                  isFormComplete
+                    ? 'bg-fintech-accent text-white hover:bg-blue-700 cursor-pointer'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                }`}
               >
                 Search Loans
               </button>
