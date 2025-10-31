@@ -1,0 +1,147 @@
+import express from 'express';
+import cors from 'cors';
+import { createUser, getUserById, getUserByEmail, resetAllUsers, getUserCount } from './factory.js';
+import { generateToken, validateCredentials } from './auth.js';
+import type {
+  CreateUserRequest,
+  CreateUserResponse,
+  LoginRequest,
+  LoginResponse,
+  GetUserRequest,
+  GetUserResponse,
+  ResetRequest,
+  ResetResponse
+} from './types.js';
+
+const app = express();
+const PORT = 7002;
+
+app.use(cors());
+app.use(express.json());
+
+app.post('/data/user/create', (req, res) => {
+  try {
+    const { plan = 'free', requires2FA = false, email } = req.body as CreateUserRequest;
+    
+    if (!['free', 'plus', 'premium'].includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan type. Must be free, plus, or premium.' });
+    }
+    
+    const user = createUser({ plan, requires2FA, email });
+    
+    const response: CreateUserResponse = {
+      userId: user.userId,
+      email: user.email,
+      password: user.password,
+      plan: user.plan,
+      requires2FA: user.requires2FA,
+      otpSecret: user.otpSecret
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/user/login', (req, res) => {
+  try {
+    const { email, password, otp } = req.body as LoginRequest;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+    
+    const user = getUserByEmail(email);
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+    
+    if (!validateCredentials(user, password, otp)) {
+      return res.status(401).json({ error: 'Invalid credentials or 2FA code.' });
+    }
+    
+    const { token, expiresAt } = generateToken(user);
+    
+    const response: LoginResponse = {
+      token,
+      expiresAt,
+      user: {
+        userId: user.userId,
+        email: user.email
+      }
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/user/get', (req, res) => {
+  try {
+    const { userId, email } = req.body as GetUserRequest;
+    
+    if (!userId && !email) {
+      return res.status(400).json({ error: 'Must provide userId or email.' });
+    }
+    
+    let user = null;
+    
+    if (userId) {
+      user = getUserById(userId);
+    } else if (email) {
+      user = getUserByEmail(email);
+    }
+    
+    const response: GetUserResponse = {
+      user
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/reset', (req, res) => {
+  try {
+    const { tenant = 'default', scope } = req.body as ResetRequest;
+    
+    resetAllUsers();
+    
+    const response: ResetResponse = {
+      ok: true,
+      message: `Environment ${tenant} reset successfully.`
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, ok: false });
+  }
+});
+
+app.get('/health', (req, res) => {
+  res.json({ 
+    ok: true, 
+    users: getUserCount(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('\nShutting down MCP-Data server...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\nShutting down MCP-Data server...');
+  process.exit(0);
+});
+
+app.listen(PORT, () => {
+  console.log(`MCP-Data server listening on http://localhost:${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
+});
+

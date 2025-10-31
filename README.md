@@ -10,7 +10,7 @@ This project implements an agentic testing framework that uses autonomous agents
 
 ## Current Status
 
-**Phase 1: Foundation & Demo App** - COMPLETE
+**Phase 1: Foundation & Demo App** - ✅ COMPLETE
 
 - Minimal monorepo structure with npm workspaces
 - React demo application (Vite + React 18 + TypeScript)
@@ -18,6 +18,14 @@ This project implements an agentic testing framework that uses autonomous agents
 - Three core pages: Login, Dashboard, Credit Report
 - Accessibility compliance with ARIA attributes and data-testid selectors
 - Tailwind CSS styling with fintech-appropriate design
+
+**Phase 2: MCP Servers** - ✅ COMPLETE
+
+- MCP-Web server with Playwright browser automation (port 7001)
+- MCP-Data server with test user factory and authentication (port 7002)
+- Session save/load for auth state reuse
+- Health check endpoints for monitoring
+- Full manual testing validated with curl
 
 ## Quick Start
 
@@ -48,9 +56,15 @@ Use any email and password to login. The authentication is mocked and will accep
 
 ### Available Scripts
 
+**Web Demo:**
 - `npm run dev` - Start the development server
 - `npm run build` - Build for production
 - `npm run lint` - Run ESLint checks
+
+**MCP Servers:**
+- `npm run start:mcp-web` - Start MCP-Web server (port 7001)
+- `npm run start:mcp-data` - Start MCP-Data server (port 7002)
+- `npm run start:servers` - Start both MCP servers concurrently
 
 ## Project Structure
 
@@ -58,6 +72,9 @@ Use any email and password to login. The authentication is mocked and will accep
 fintech-agentic-testing/
 ├── apps/
 │   └── web-demo/           # React demo application
+├── servers/
+│   ├── mcp-web/            # Playwright browser automation server
+│   └── mcp-data/           # Test data factory server
 ├── docs/                   # Documentation
 ├── package.json            # Root workspace configuration
 └── PROJECT_PLAN.md         # Comprehensive project plan
@@ -103,6 +120,8 @@ See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the complete roadmap:
 
 - [PROJECT_PLAN.md](./PROJECT_PLAN.md) - Complete project specification
 - [docs/phase1-setup.md](./docs/phase1-setup.md) - Phase 1 setup guide
+- [docs/phase2-mcp-servers.md](./docs/phase2-mcp-servers.md) - Phase 2 MCP servers guide
+- [docs/phase2-test-results.md](./docs/phase2-test-results.md) - Phase 2 test results
 - [apps/web-demo/README.md](./apps/web-demo/README.md) - Web demo documentation
 
 ## License

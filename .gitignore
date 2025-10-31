@@ -9,3 +9,6 @@ dist
 !.vscode/extensions.json
 .idea
 
+servers/*/sessions/
+servers/*/traces/
+*.trace.zip
