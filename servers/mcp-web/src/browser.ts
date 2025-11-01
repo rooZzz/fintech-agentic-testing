@@ -13,7 +13,11 @@ class BrowserManager {
     if (!this.browser) {
       this.browser = await chromium.launch({
         headless: false,
-        args: ['--disable-blink-features=AutomationControlled']
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          '--window-size=780,844',
+          '--window-position=0,0',
+        ]
       });
     }
     return this.browser;
@@ -25,7 +29,10 @@ class BrowserManager {
     if (!ctx) {
       const browser = await this.ensureBrowser();
       const context = await browser.newContext({
-        viewport: { width: 1280, height: 720 }
+        viewport: { width: 780, height: 844 },
+        isMobile: false,
+        hasTouch: false,
+        deviceScaleFactor: 2,
       });
       const page = await context.newPage();
       

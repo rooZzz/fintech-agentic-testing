@@ -64,6 +64,8 @@ export async function runScenario(
           timestamp: new Date().toISOString(),
         });
 
+        await mcpWeb.resetBrowser({ contextId });
+
         return {
           scenarioId: spec.id,
           status: 'success',
@@ -132,6 +134,7 @@ export async function runScenario(
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
+    await mcpWeb.resetBrowser({ contextId }).catch(() => {});
     throw new Error(`Max steps (${spec.constraints.max_steps}) reached without success`);
   } catch (error) {
     const duration = (Date.now() - startTime) / 1000;
@@ -156,6 +159,8 @@ export async function runScenario(
       totalCost: context.totalCost,
       timestamp: new Date().toISOString(),
     });
+
+    await mcpWeb.resetBrowser({ contextId }).catch(() => {});
 
     return {
       scenarioId: spec.id,
