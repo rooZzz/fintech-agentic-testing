@@ -267,6 +267,37 @@ app.post('/browser/reset', async (req, res) => {
   }
 });
 
+app.get('/tools', (req, res) => {
+  const tools = [
+    {
+      name: 'ui.act.click',
+      description: 'Click an interactive element on the page',
+      params: {
+        testId: 'string (optional) - data-testid attribute',
+        selector: 'string (optional) - CSS selector',
+        nodeId: 'string (optional) - Node identifier'
+      }
+    },
+    {
+      name: 'ui.act.type',
+      description: 'Type text into an input field or select element',
+      params: {
+        testId: 'string (optional) - data-testid attribute',
+        selector: 'string (optional) - CSS selector',
+        text: 'string (required) - Text to type',
+        clear: 'boolean (optional) - Clear field first'
+      }
+    },
+    {
+      name: 'ui.observe',
+      description: 'Get current page state and visible elements',
+      params: {}
+    }
+  ];
+  
+  res.json({ tools });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     ok: true,

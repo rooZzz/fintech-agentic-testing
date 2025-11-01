@@ -415,7 +415,19 @@ export function generateHTML(data: ReportData): string {
                       <div class="detail-label">Actual Steps</div>
                       <div class="detail-value">${scenario.optimality.actualSteps}</div>
                     </div>
+                    <div class="detail-item">
+                      <div class="detail-label">Data Verifications</div>
+                      <div class="detail-value" style="color: ${scenario.dataVerificationCount > 0 ? '#10b981' : '#6b7280'}">
+                        🔍 ${scenario.dataVerificationCount}
+                      </div>
+                    </div>
                   </div>
+                  ${scenario.dataVerificationCount > 0 ? `
+                    <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Verification Steps</h4>
+                    <div style="color: #6b7280; font-size: 0.875rem;">
+                      Agent performed data verification at steps: ${scenario.verificationSteps.join(', ')}
+                    </div>
+                  ` : ''}
                   ${scenario.backtracks.urlHistory.length > 0 ? `
                     <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">URL History</h4>
                     <ol style="padding-left: 1.5rem; color: #6b7280; font-size: 0.875rem;">

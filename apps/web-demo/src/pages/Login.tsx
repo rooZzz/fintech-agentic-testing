@@ -11,6 +11,8 @@ export const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const isFormValid = email.trim() !== '' && password.trim() !== '';
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -93,7 +95,7 @@ export const Login = () => {
             type="submit"
             data-testid="login-button"
             aria-label="Log in"
-            disabled={isLoading}
+            disabled={isLoading || !isFormValid}
             className="w-full bg-fintech-accent hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Signing in...' : 'Sign In'}

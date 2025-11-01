@@ -11,6 +11,14 @@ export function analyzeScenario(scenario: ParsedScenario): ScenarioMetrics {
   const optimality = calculateOptimality(scenario.scenarioId, scenario.totalSteps);
   const timing = calculateTiming(scenario);
   
+  const dataVerificationCount = scenario.steps.filter(step => 
+    step.action.type.startsWith('data.')
+  ).length;
+  
+  const verificationSteps = scenario.steps
+    .filter(step => step.action.type.startsWith('data.'))
+    .map(step => step.step);
+  
   return {
     scenarioId: scenario.scenarioId,
     runId: scenario.runId,
@@ -20,12 +28,17 @@ export function analyzeScenario(scenario: ParsedScenario): ScenarioMetrics {
     optimality,
     timing,
     totalSteps: scenario.totalSteps,
-    totalCost: scenario.totalCost
+    totalCost: scenario.totalCost,
+    dataVerificationCount,
+    verificationSteps
   };
 }
 
 export function analyzeScenarioFile(filePath: string): ScenarioMetrics {
   const scenario = parseScenario(filePath);
+  if (!scenario) {
+    throw new Error(`Failed to parse scenario file: ${filePath}`);
+  }
   return analyzeScenario(scenario);
 }
 

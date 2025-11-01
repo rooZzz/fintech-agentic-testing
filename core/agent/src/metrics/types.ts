@@ -112,6 +112,8 @@ export interface ScenarioMetrics {
   timing: TimingMetric;
   totalSteps: number;
   totalCost: number;
+  dataVerificationCount: number;
+  verificationSteps: number[];
 }
 
 export interface AggregateMetrics {

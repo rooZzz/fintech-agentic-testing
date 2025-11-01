@@ -56,6 +56,15 @@
                     "description": "Text content of heading element"
                   }
                 }
+              },
+              {
+                "required": ["comprehensive"],
+                "properties": {
+                  "comprehensive": {
+                    "type": "string",
+                    "description": "Natural language comprehensive success condition requiring both UI and backend validation"
+                  }
+                }
               }
             ]
           }

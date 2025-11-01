@@ -1,8 +1,8 @@
 import { GoalSpec, ScenarioResult, StepResult, AgentContext } from '../schema/types.js';
 import { mcpData, mcpWeb } from '../mcp/client.js';
 import { OpenAIClient } from '../llm/openai-client.js';
-import { evaluateSuccess } from '../conditions/evaluator.js';
 import { JSONLLogger } from '../logger/jsonl-logger.js';
+import { discoverAllTools, formatToolsForPrompt } from '../mcp/tool-discovery.js';
 
 export async function runScenario(
   spec: GoalSpec,
@@ -24,6 +24,11 @@ export async function runScenario(
     timestamp: new Date().toISOString(),
   });
 
+  console.log('Discovering available MCP operations...');
+  const discoveredTools = await discoverAllTools();
+  const toolsPrompt = formatToolsForPrompt(discoveredTools);
+  console.log(`✓ Discovered ${discoveredTools.web.length + discoveredTools.data.length} operations`);
+
   const context: AgentContext = {
     spec,
     variables: { _contextId: contextId },
@@ -35,46 +40,12 @@ export async function runScenario(
   try {
     await runPreconditions(spec, context, logger);
 
-    const client = new OpenAIClient(spec);
+    const client = new OpenAIClient(spec, toolsPrompt);
 
     await mcpWeb.navigate({ url: spec.context.start_url, contextId });
 
     for (let step = 1; step <= spec.constraints.max_steps; step++) {
       const observation = await mcpWeb.observe(contextId);
-
-      const successCheck = evaluateSuccess(observation, spec.goal.success);
-      if (successCheck.met) {
-        console.log(`✓ Success condition met: ${successCheck.matchedCondition}`);
-        
-        const duration = (Date.now() - startTime) / 1000;
-        logger.logScenarioEnd({
-          scenarioId: spec.id,
-          status: 'success',
-          steps: step - 1,
-          duration,
-          totalCost: context.totalCost,
-          timestamp: new Date().toISOString(),
-        });
-
-        logger.logRunEnd({
-          runId,
-          status: 'success',
-          duration,
-          totalCost: context.totalCost,
-          timestamp: new Date().toISOString(),
-        });
-
-        await mcpWeb.resetBrowser({ contextId });
-
-        return {
-          scenarioId: spec.id,
-          status: 'success',
-          steps: context.steps,
-          totalSteps: step - 1,
-          duration,
-          totalCost: context.totalCost,
-        };
-      }
 
       console.log(`\nStep ${step}:`);
       console.log(`URL: ${observation.url}`);
@@ -105,7 +76,40 @@ export async function runScenario(
         );
       }
 
-      await dispatchAction(plan.action, contextId);
+      if (plan.goalMet) {
+        console.log(`✓ Agent declares goal met: ${plan.reasoning}`);
+        
+        const duration = (Date.now() - startTime) / 1000;
+        logger.logScenarioEnd({
+          scenarioId: spec.id,
+          status: 'success',
+          steps: step,
+          duration,
+          totalCost: context.totalCost,
+          timestamp: new Date().toISOString(),
+        });
+
+        logger.logRunEnd({
+          runId,
+          status: 'success',
+          duration,
+          totalCost: context.totalCost,
+          timestamp: new Date().toISOString(),
+        });
+
+        await mcpWeb.resetBrowser({ contextId });
+
+        return {
+          scenarioId: spec.id,
+          status: 'success',
+          steps: context.steps,
+          totalSteps: step,
+          duration,
+          totalCost: context.totalCost,
+        };
+      }
+
+      const actionResult = await dispatchAction(plan.action, contextId);
 
       const stepResult: StepResult = {
         step,
@@ -127,6 +131,7 @@ export async function runScenario(
         },
         action: plan.action,
         reasoning: plan.reasoning,
+        result: plan.action.type.startsWith('data.') ? actionResult : undefined,
         tokens,
         timestamp: new Date().toISOString(),
       });
@@ -220,13 +225,19 @@ async function runPreconditions(
   }
 }
 
-async function dispatchAction(action: any, contextId: string): Promise<void> {
+async function dispatchAction(action: any, contextId: string): Promise<any> {
   if (action.type === 'ui.act.click') {
-    await mcpWeb.click({ ...action.params, contextId });
+    return await mcpWeb.click({ ...action.params, contextId });
   } else if (action.type === 'ui.act.type') {
-    await mcpWeb.type({ ...action.params, contextId });
+    return await mcpWeb.type({ ...action.params, contextId });
   } else if (action.type === 'ui.navigate') {
-    await mcpWeb.navigate({ ...action.params, contextId });
+    return await mcpWeb.navigate({ ...action.params, contextId });
+  } else if (action.type === 'data.user.get') {
+    return await mcpData.getUser(action.params);
+  } else if (action.type === 'data.loan.list') {
+    return await mcpData.listLoans(action.params);
+  } else if (action.type === 'data.loan.get') {
+    return await mcpData.getLoan(action.params);
   } else {
     throw new Error(`Unknown action type: ${action.type}`);
   }

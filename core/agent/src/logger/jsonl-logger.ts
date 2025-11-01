@@ -40,6 +40,7 @@ export class JSONLLogger {
     };
     action: any;
     reasoning: string;
+    result?: any;
     tokens: {
       prompt: number;
       completion: number;

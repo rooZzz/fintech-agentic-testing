@@ -199,6 +199,58 @@ app.post('/data/loan/reset', (req, res) => {
   }
 });
 
+app.get('/tools', (req, res) => {
+  const tools = [
+    {
+      name: 'data.user.get',
+      description: 'Fetch user data from database to verify displayed information',
+      params: {
+        email: 'string (optional) - User email address',
+        userId: 'string (optional) - User ID'
+      }
+    },
+    {
+      name: 'data.user.create',
+      description: 'Create a test user (used in preconditions)',
+      params: {
+        plan: 'string (required) - Subscription plan',
+        requires2FA: 'boolean (required) - Enable 2FA'
+      }
+    },
+    {
+      name: 'data.loan.list',
+      description: 'List loan applications to verify backend state',
+      params: {
+        amount: 'number (optional) - Filter by amount',
+        term: 'number (optional) - Filter by term'
+      }
+    },
+    {
+      name: 'data.loan.get',
+      description: 'Get specific loan details for verification',
+      params: {
+        id: 'string (required) - Loan ID'
+      }
+    },
+    {
+      name: 'data.loan.seed',
+      description: 'Seed loan offers (used in preconditions)',
+      params: {
+        count: 'number (optional) - Number of loans to seed'
+      }
+    },
+    {
+      name: 'data.reset',
+      description: 'Reset test data (used in preconditions)',
+      params: {
+        tenant: 'string (optional) - Tenant identifier'
+      }
+    }
+  ];
+  
+  res.json({ tools });
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     ok: true, 

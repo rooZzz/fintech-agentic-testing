@@ -15,7 +15,8 @@ export interface Goal {
 export type SuccessCondition =
   | { url_contains: string }
   | { element_visible: string }
-  | { heading_text: string };
+  | { heading_text: string }
+  | { comprehensive: string };
 
 export interface Context {
   start_url: string;
@@ -58,6 +59,7 @@ export interface Action {
 export interface ActionPlan {
   reasoning: string;
   action: Action;
+  goalMet?: boolean;
 }
 
 export interface StepResult {

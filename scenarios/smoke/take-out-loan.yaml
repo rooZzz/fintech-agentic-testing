@@ -1,10 +1,9 @@
 version: "0.1"
 id: take-out-loan
 goal:
-  description: "Navigate to loans, search for a loan, select an offer, and reach confirmation"
+  description: "Apply for a loan"
   success:
-    - heading_text: "Loan Application Submitted"
-    - element_visible: "loan-confirmation-details"
+    - comprehensive: "Loan application confirmed"
 
 context:
   start_url: "http://localhost:5173/dashboard"

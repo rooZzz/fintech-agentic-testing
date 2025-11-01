@@ -14,7 +14,7 @@ export class OpenAIClient {
   private model: string;
   private systemPrompt: string;
 
-  constructor(spec: GoalSpec) {
+  constructor(spec: GoalSpec, toolsPrompt: string) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required');
@@ -22,7 +22,7 @@ export class OpenAIClient {
 
     this.client = new OpenAI({ apiKey });
     this.model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-    this.systemPrompt = buildSystemPrompt(spec);
+    this.systemPrompt = buildSystemPrompt(spec, toolsPrompt);
   }
 
   async planNextAction(

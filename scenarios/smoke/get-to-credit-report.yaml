@@ -1,9 +1,9 @@
 version: "0.1"
 id: get-to-credit-report
 goal:
-  description: "Login and reach credit report"
+  description: "Login and view credit report"
   success:
-    - url_contains: "/credit-report"
+    - comprehensive: "Credit report page displays user's credit score"
 
 context:
   start_url: "http://localhost:5173/login"

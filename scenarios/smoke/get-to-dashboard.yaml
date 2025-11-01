@@ -3,7 +3,7 @@ id: get-to-dashboard
 goal:
   description: "Login and reach dashboard"
   success:
-    - url_contains: "/dashboard"
+    - comprehensive: "User successfully logged in and reached dashboard page"
 
 context:
   start_url: "http://localhost:5173/login"
