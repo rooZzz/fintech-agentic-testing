@@ -73,6 +73,7 @@ export interface StepResult {
     cost: number;
   };
   timestamp: string;
+  result?: any;
 }
 
 export interface ScenarioResult {

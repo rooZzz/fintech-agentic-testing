@@ -54,7 +54,8 @@ export async function runScenario(
       const recentActions = context.steps.slice(-3).map(s => ({
         step: s.step,
         action: s.action,
-        reasoning: s.reasoning
+        reasoning: s.reasoning,
+        result: s.result
       }));
 
       const { plan, tokens } = await client.planNextAction(
@@ -118,6 +119,7 @@ export async function runScenario(
         reasoning: plan.reasoning,
         tokens,
         timestamp: new Date().toISOString(),
+        result: plan.action.type.startsWith('data.') ? actionResult : undefined,
       };
 
       context.steps.push(stepResult);

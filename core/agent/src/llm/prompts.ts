@@ -197,44 +197,43 @@ DO:
 
 === DECLARING SUCCESS ===
 
-When you reach your PRIMARY GOAL target state AND verify it:
-- If data.* tools exist: Call them to verify backend
-- If no relevant tools exist: Verify UI thoroughly
-- Set "goalMet": true in THE SAME RESPONSE
-- Don't navigate away first!
+IMPORTANT: Verification is a TWO-STEP process:
 
-CORRECT - WITH backend verification:
+Step 1: Call verification (without goalMet)
 {
-  "reasoning": "Reached credit report page showing score 750. Verifying backend has matching data. Goal complete.",
-  "action": {"type": "data.user.get", "params": {"email": "test@example.com"}},
-  "goalMet": true
-}
-
-CORRECT - WITH backend verification (loan):
-{
-  "reasoning": "On loan confirmation page for loan ID abc123. Verifying backend saved correctly. Goal complete.",
+  "reasoning": "On confirmation page. Need to verify backend before declaring success.",
   "action": {"type": "data.loan.get", "params": {"id": "abc123"}},
-  "goalMet": true
+  "goalMet": false
 }
 
-CORRECT - WITHOUT backend tools available:
+Step 2: Next turn, evaluate results and decide
 {
-  "reasoning": "Reached dashboard page. No additional data tools needed for verification. UI verified. Goal complete.",
-  "action": {"type": "data.user.get", "params": {"email": "test@example.com"}},
+  "reasoning": "Verification returned valid loan data matching UI. All layers verified. Goal complete.",
+  "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}},
   "goalMet": true
 }
 
-Note: Even when no backend tools are strictly needed, you can still call data.user.get if available,
-or include any valid action. An action field is always required.
+OR if verification failed:
+{
+  "reasoning": "BUG DETECTED: UI shows loan confirmed but data.loan.get returned null. Backend did not save the loan.",
+  "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}},
+  "goalMet": false
+}
 
-WRONG - Don't verify without declaring success:
+Never declare goalMet: true in the same turn as calling verification. Wait for results.
+
+CORRECT - TWO-TURN verification:
+Turn 1: {"reasoning": "Reached credit report page. Verifying backend.", "action": {"type": "data.user.get", "params": {"email": "test@example.com"}}, "goalMet": false}
+Turn 2: {"reasoning": "Verification successful. Backend matches UI. Goal complete.", "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}}, "goalMet": true}
+
+WRONG - ONE-TURN verification (blind success):
 {
   "reasoning": "Verifying credit report data",
   "action": {"type": "data.user.get", "params": {"email": "test@example.com"}},
-  "goalMet": false  ← WRONG! If this is your goal, set true!
+  "goalMet": true  ← WRONG! You haven't seen the result yet!
 }
 
-CRITICAL RULE: When you verify your PRIMARY GOAL, set goalMet: true. Don't verify, navigate away, and verify again.
+CRITICAL RULE: Call verification → Wait for result → Then decide goalMet based on what you see.
 
 === RESPONSE FORMAT ===
 
@@ -275,7 +274,7 @@ export function buildObservationPrompt(
   observation: Observation,
   stepNumber: number,
   variables: Record<string, any>,
-  recentActions?: Array<{ step: number; action: any; reasoning: string }>
+  recentActions?: Array<{ step: number; action: any; reasoning: string; result?: any }>
 ): string {
   const interactiveElements = observation.nodes
     .filter((node) => node.visible && node.enabled)
@@ -360,6 +359,25 @@ ${recentActions.map(a => `- Step ${a.step}: ${a.action.type}`).join('\n')}
 CRITICAL: Observe the CURRENT page URL and elements. Don't assume you're still on the previous page.${contextGuidance}${stagnationWarning}`;
   }
 
+  let verificationContext = '';
+  if (recentActions && recentActions.length > 0) {
+    const lastAction = recentActions[recentActions.length - 1];
+    
+    if (lastAction.result && lastAction.action.type.startsWith('data.')) {
+      verificationContext = `\n\n=== VERIFICATION RESULT ===
+
+You called: ${lastAction.action.type}
+Result: ${JSON.stringify(lastAction.result, null, 2)}
+
+CRITICAL: Compare this backend data to what's displayed in the UI.
+- If they match and you've reached your PRIMARY GOAL → set goalMet: true
+- If they DON'T match → there's a BUG. Report the discrepancy in reasoning and do NOT set goalMet.
+- If result is null/empty but UI shows data → BACKEND BUG, fail the test.
+
+Make your decision based on this verification data.`;
+    }
+  }
+
   return `Step ${stepNumber}
 
 === CURRENT PAGE STATE ===
@@ -371,6 +389,7 @@ Elements you can interact with RIGHT NOW:
 ${interactiveElements.join('\n')}
 ${contextInfo}
 ${recentActionsText}
+${verificationContext}
 
 Based on the CURRENT page (URL: ${observation.url}), what is your next action?`;
 }
