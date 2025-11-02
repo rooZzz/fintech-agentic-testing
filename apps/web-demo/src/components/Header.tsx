@@ -46,6 +46,27 @@ export const Header = () => {
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">{session?.user.email}</span>
           <button
+            onClick={() => navigate('/profile')}
+            data-testid="profile-button"
+            aria-label="View profile"
+            className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-full transition"
+          >
+            <svg 
+              className="w-6 h-6" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+              />
+            </svg>
+          </button>
+          <button
             onClick={handleLogout}
             data-testid="logout-button"
             aria-label="Log out"

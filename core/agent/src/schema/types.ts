@@ -9,14 +9,8 @@ export interface GoalSpec {
 
 export interface Goal {
   description: string;
-  success: SuccessCondition[];
+  success: string;
 }
-
-export type SuccessCondition =
-  | { url_contains: string }
-  | { element_visible: string }
-  | { heading_text: string }
-  | { comprehensive: string };
 
 export interface Context {
   start_url: string;

@@ -2,8 +2,7 @@ version: "0.1"
 id: take-out-loan
 goal:
   description: "Apply for a loan"
-  success:
-    - comprehensive: "Loan application confirmed"
+  success: "Loan application submitted successfully"
 
 context:
   start_url: "http://localhost:5173/dashboard"

@@ -8,6 +8,7 @@ import { CreditReport } from '@/pages/CreditReport';
 import { Loans } from '@/pages/Loans';
 import { LoanResults } from '@/pages/LoanResults';
 import { LoanConfirmation } from '@/pages/LoanConfirmation';
+import { Profile } from '@/pages/Profile';
 
 const RootRedirect = () => {
   const { isAuthenticated } = useAuth();
@@ -44,6 +45,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <CreditReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             }
           />

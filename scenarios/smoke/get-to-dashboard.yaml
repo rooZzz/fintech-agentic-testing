@@ -2,8 +2,7 @@ version: "0.1"
 id: get-to-dashboard
 goal:
   description: "Login and reach dashboard"
-  success:
-    - comprehensive: "User successfully logged in and reached dashboard page"
+  success: "User is logged in and viewing the dashboard"
 
 context:
   start_url: "http://localhost:5173/login"

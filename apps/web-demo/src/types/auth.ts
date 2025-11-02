@@ -5,6 +5,7 @@ export interface AuthSession {
   user: {
     email: string;
     userId: string;
+    name?: string;
   };
 }
 

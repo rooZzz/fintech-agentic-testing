@@ -1,17 +1,13 @@
-import { GoalSpec, Observation, SuccessCondition } from '../schema/types.js';
+import { GoalSpec, Observation } from '../schema/types.js';
 
 export function buildSystemPrompt(spec: GoalSpec, availableTools: string): string {
-  const successConditions = spec.goal.success
-    .map((cond) => formatCondition(cond))
-    .join('\n');
-
   return `You are a testing agent for end-to-end web scenarios.
 
 === YOUR GOAL ===
 ${spec.goal.description}
 
 === SUCCESS CONDITIONS ===
-${successConditions}
+${spec.goal.success}
 
 === CONSTRAINTS ===
 - Max steps: ${spec.constraints.max_steps}
@@ -32,23 +28,9 @@ ${availableTools}
 3) Do not repeat the same action with identical parameters twice in a row
 4) Respond only with JSON: {"reasoning": "...", "action": {"type": "...", "params": {...}}}
 
-NOTE: You can validate multiple sources across multiple turns before calling goal.complete`;
-}
+IMPORTANT: Verify success via persistent UI state (forms, text displays, data tables) or backend validation (data.* tools), not temporary feedback messages.
 
-function formatCondition(condition: SuccessCondition): string {
-  if ('url_contains' in condition) {
-    return `- URL contains: "${condition.url_contains}"`;
-  }
-  if ('element_visible' in condition) {
-    return `- Element visible with testId: "${condition.element_visible}"`;
-  }
-  if ('heading_text' in condition) {
-    return `- Heading text equals: "${condition.heading_text}"`;
-  }
-  if ('comprehensive' in condition) {
-    return `- Comprehensive: ${condition.comprehensive}`;
-  }
-  return '- Unknown condition';
+NOTE: You can validate multiple sources across multiple turns before calling goal.complete`;
 }
 
 export function buildObservationPrompt(

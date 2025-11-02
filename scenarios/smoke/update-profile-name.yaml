@@ -1,0 +1,16 @@
+version: "0.1"
+id: update-profile-name
+goal:
+  description: "Update your name in your profile"
+  success: "Profile name updated to 'Jane Smith'"
+
+context:
+  start_url: "http://localhost:5173/dashboard"
+
+preconditions:
+  - instruction: "Create a test user with a plus plan and name 'John Doe'"
+
+constraints:
+  max_steps: 30
+  max_cost_usd: 0.80
+

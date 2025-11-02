@@ -25,49 +25,9 @@
           "description": "Human-readable goal description"
         },
         "success": {
-          "type": "array",
-          "minItems": 1,
-          "description": "Success conditions (any condition met = success)",
-          "items": {
-            "type": "object",
-            "oneOf": [
-              {
-                "required": ["url_contains"],
-                "properties": {
-                  "url_contains": {
-                    "type": "string"
-                  }
-                }
-              },
-              {
-                "required": ["element_visible"],
-                "properties": {
-                  "element_visible": {
-                    "type": "string",
-                    "description": "testId of element that must be visible"
-                  }
-                }
-              },
-              {
-                "required": ["heading_text"],
-                "properties": {
-                  "heading_text": {
-                    "type": "string",
-                    "description": "Text content of heading element"
-                  }
-                }
-              },
-              {
-                "required": ["comprehensive"],
-                "properties": {
-                  "comprehensive": {
-                    "type": "string",
-                    "description": "Natural language comprehensive success condition requiring both UI and backend validation"
-                  }
-                }
-              }
-            ]
-          }
+          "type": "string",
+          "minLength": 1,
+          "description": "Natural language description of the desired outcome"
         }
       }
     },

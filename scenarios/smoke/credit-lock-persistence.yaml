@@ -2,8 +2,7 @@ version: "0.1"
 id: credit-lock-persistence
 goal:
   description: "Verify credit lock persists when navigating away and returning to dashboard"
-  success:
-    - comprehensive: "Credit lock remains enabled after navigating to loans and back to dashboard"
+  success: "Credit lock remains enabled after navigating away and returning"
 
 context:
   start_url: "http://localhost:5173/dashboard"

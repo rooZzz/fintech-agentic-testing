@@ -19,7 +19,8 @@ import {
   getLoanCount,
   toggleCreditLock,
   getCreditLockStatus,
-  getCreditReport
+  getCreditReport,
+  updateUserName
 } from './factory.js';
 import { generateToken, validateCredentials } from './auth.js';
 
@@ -78,6 +79,10 @@ function createMCPServer() {
               email: {
                 type: 'string',
                 description: 'User email address (optional)'
+              },
+              name: {
+                type: 'string',
+                description: 'User full name (optional)'
               }
             },
             required: ['plan', 'requires2FA']
@@ -215,17 +220,18 @@ function createMCPServer() {
       
       switch (name) {
         case 'data.user.create': {
-          const { plan = 'free', requires2FA = false, email } = args as any;
+          const { plan = 'free', requires2FA = false, email, name } = args as any;
           
           if (!['free', 'plus', 'premium'].includes(plan)) {
             throw new Error('Invalid plan type. Must be free, plus, or premium.');
           }
           
-          const user = createUser({ plan, requires2FA, email });
+          const user = createUser({ plan, requires2FA, email, name });
           result = {
             userId: user.userId,
             email: user.email,
             password: user.password,
+            name: user.name,
             plan: user.plan,
             requires2FA: user.requires2FA,
             otpSecret: user.otpSecret
@@ -411,18 +417,19 @@ fastify.all('/mcp', async (request, reply) => {
 
 fastify.post('/data/user/create', async (request, reply) => {
   try {
-    const { plan = 'free', requires2FA = false, email } = request.body as any;
+    const { plan = 'free', requires2FA = false, email, name } = request.body as any;
     
     if (!['free', 'plus', 'premium'].includes(plan)) {
       return reply.status(400).send({ error: 'Invalid plan type. Must be free, plus, or premium.' });
     }
     
-    const user = createUser({ plan, requires2FA, email });
+    const user = createUser({ plan, requires2FA, email, name });
     
     reply.send({
       userId: user.userId,
       email: user.email,
       password: user.password,
+      name: user.name,
       plan: user.plan,
       requires2FA: user.requires2FA,
       otpSecret: user.otpSecret
@@ -522,6 +529,34 @@ fastify.post('/data/user/get-credit-lock', async (request, reply) => {
     });
   } catch (error: any) {
     reply.status(500).send({ error: error.message });
+  }
+});
+
+fastify.post('/data/user/update-name', async (request, reply) => {
+  try {
+    const { userId, name } = request.body as any;
+    
+    if (!userId) {
+      return reply.status(400).send({ error: 'userId is required' });
+    }
+    
+    if (!name) {
+      return reply.status(400).send({ error: 'name is required' });
+    }
+    
+    const user = updateUserName(userId, name);
+    
+    reply.send({
+      success: true,
+      user: {
+        userId: user.userId,
+        email: user.email,
+        name: user.name,
+        plan: user.plan
+      }
+    });
+  } catch (error: any) {
+    reply.status(400).send({ error: error.message });
   }
 });
 

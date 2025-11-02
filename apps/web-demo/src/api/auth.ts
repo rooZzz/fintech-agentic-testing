@@ -180,3 +180,60 @@ export const getCreditReport = async (userId: string): Promise<CreditReport> => 
   }
 };
 
+export interface UserProfile {
+  userId: string;
+  email: string;
+  name?: string;
+  plan: string;
+}
+
+export const getUserProfile = async (userId: string): Promise<UserProfile> => {
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/user/get`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user profile');
+    }
+
+    const data = await response.json();
+    return {
+      userId: data.user.userId,
+      email: data.user.email,
+      name: data.user.name,
+      plan: data.user.plan,
+    };
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    throw error;
+  }
+};
+
+export const updateUserName = async (userId: string, name: string): Promise<UserProfile> => {
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/user/update-name`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, name }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to update name' }));
+      throw new Error(errorData.error || 'Failed to update name');
+    }
+
+    const data = await response.json();
+    return data.user;
+  } catch (error) {
+    console.error('Error updating user name:', error);
+    throw error;
+  }
+};
+

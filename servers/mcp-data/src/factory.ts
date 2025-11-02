@@ -8,6 +8,7 @@ export function createUser(params: {
   plan: 'free' | 'plus' | 'premium';
   requires2FA?: boolean;
   email?: string;
+  name?: string;
 }): TestUser {
   const userId = randomUUID();
   const email = params.email || `test.${userId.slice(0, 8)}@example.com`;
@@ -17,6 +18,7 @@ export function createUser(params: {
     userId,
     email,
     password,
+    name: params.name || 'Test User',
     plan: params.plan,
     requires2FA: params.requires2FA || false,
     otpSecret: params.requires2FA ? generateOTPSecret() : undefined,
@@ -222,6 +224,28 @@ export function getCreditLockStatus(userId: string): boolean {
   }
   
   return user.creditLocked;
+}
+
+export function updateUserName(userId: string, name: string): TestUser {
+  const user = getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
+  
+  if (!name || name.trim().length === 0) {
+    throw new Error('Name cannot be empty');
+  }
+  
+  if (name.length < 2) {
+    throw new Error('Name must be at least 2 characters');
+  }
+  
+  if (name.length > 100) {
+    throw new Error('Name must be 100 characters or less');
+  }
+  
+  user.name = name.trim();
+  return user;
 }
 
 export function getCreditReport(userId: string): CreditReport {

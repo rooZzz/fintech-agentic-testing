@@ -2,6 +2,7 @@ export interface TestUser {
   userId: string;
   email: string;
   password: string;
+  name?: string;
   plan: 'free' | 'plus' | 'premium';
   requires2FA: boolean;
   otpSecret?: string;

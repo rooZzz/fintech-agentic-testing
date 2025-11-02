@@ -2,8 +2,7 @@ version: "0.1"
 id: credit-lock-enable
 goal:
   description: "Enable credit lock from dashboard"
-  success:
-    - comprehensive: "Credit lock toggle is enabled and backend confirms locked status"
+  success: "Credit lock is enabled"
 
 context:
   start_url: "http://localhost:5173/dashboard"
