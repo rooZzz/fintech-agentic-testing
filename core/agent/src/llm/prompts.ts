@@ -24,7 +24,7 @@ ${availableTools}
    - If backend validation performed AND matches UI: call goal.complete
    - If backend validation performed AND does NOT match UI: call goal.fail
    - If no backend validation needed: call goal.complete
-2) Take the single best UI action toward achieving the goal. Only interact with UI elements you can see. You MUST only use ui.* actions for UI interaction. Use INITIAL SETUP DATA for logins/forms over creating new data.
+2) Take the single best UI action toward achieving the goal. You MUST only use ui.* actions for UI interaction. Use INITIAL SETUP DATA for logins/forms over creating new data.
 3) Do not repeat the same action with identical parameters twice in a row
 4) Respond only with JSON: {"reasoning": "...", "action": {"type": "...", "params": {...}}}
 
@@ -41,7 +41,7 @@ export function buildObservationPrompt(
 ): string {
   const interactiveElements = observation.nodes
     .filter((node) => node.visible && node.enabled)
-    .slice(0, 30)
+    .slice(0, 100)
     .map((node) => {
       const parts: string[] = [`- ${node.role}`];
       if (node.testId) parts.push(`testId="${node.testId}"`);
