@@ -6,6 +6,7 @@ export interface TestUser {
   requires2FA: boolean;
   otpSecret?: string;
   createdAt: string;
+  creditLocked: boolean;
 }
 
 export interface CreateUserRequest {

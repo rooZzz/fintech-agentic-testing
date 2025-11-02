@@ -1,0 +1,21 @@
+version: "0.1"
+id: credit-lock-enable
+goal:
+  description: "Enable credit lock from dashboard"
+  success:
+    - comprehensive: "Credit lock toggle is enabled and backend confirms locked status"
+
+context:
+  start_url: "http://localhost:5173/dashboard"
+
+preconditions:
+  - mcp: "data.user.create"
+    params:
+      plan: "plus"
+      requires2FA: false
+    store_as: "testUser"
+
+constraints:
+  max_steps: 15
+  max_cost_usd: 0.40
+

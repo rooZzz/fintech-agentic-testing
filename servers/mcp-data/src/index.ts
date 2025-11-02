@@ -10,7 +10,9 @@ import {
   listLoans,
   getLoanById,
   resetAllLoans,
-  getLoanCount
+  getLoanCount,
+  toggleCreditLock,
+  getCreditLockStatus
 } from './factory.js';
 import { generateToken, validateCredentials } from './auth.js';
 import type {
@@ -199,6 +201,44 @@ app.post('/data/loan/reset', (req, res) => {
   }
 });
 
+app.post('/data/user/toggle-credit-lock', (req, res) => {
+  try {
+    const { userId } = req.body as { userId: string };
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required.' });
+    }
+    
+    const creditLocked = toggleCreditLock(userId);
+    
+    res.json({
+      userId,
+      creditLocked
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/data/user/get-credit-lock', (req, res) => {
+  try {
+    const { userId } = req.body as { userId: string };
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required.' });
+    }
+    
+    const creditLocked = getCreditLockStatus(userId);
+    
+    res.json({
+      userId,
+      creditLocked
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/tools', (req, res) => {
   const tools = [
     {
@@ -244,6 +284,20 @@ app.get('/tools', (req, res) => {
       description: 'Reset test data (used in preconditions)',
       params: {
         tenant: 'string (optional) - Tenant identifier'
+      }
+    },
+    {
+      name: 'data.user.getCreditLock',
+      description: 'Get credit lock status for a user',
+      params: {
+        userId: 'string (required) - User ID'
+      }
+    },
+    {
+      name: 'data.user.toggleCreditLock',
+      description: 'Toggle credit lock status for a user',
+      params: {
+        userId: 'string (required) - User ID'
       }
     }
   ];

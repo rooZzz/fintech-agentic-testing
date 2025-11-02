@@ -3,26 +3,42 @@ import type { AuthSession, LoginCredentials } from '@/types/auth';
 const SESSION_STORAGE_KEY = 'auth_session';
 
 export const mockLogin = async (credentials: LoginCredentials): Promise<AuthSession> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/user/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
+    });
 
-  const userId = Math.random().toString(36).substring(7);
-  const token = btoa(JSON.stringify({ userId, email: credentials.email }));
-  const refreshToken = btoa(JSON.stringify({ userId, type: 'refresh' }));
-  const expiresAt = Date.now() + 15 * 60 * 1000;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Authentication failed' }));
+      throw new Error(errorData.error || 'Authentication failed');
+    }
 
-  const session: AuthSession = {
-    token,
-    refreshToken,
-    expiresAt,
-    user: {
-      email: credentials.email,
-      userId,
-    },
-  };
+    const data = await response.json();
+    
+    const session: AuthSession = {
+      token: data.token,
+      refreshToken: data.token,
+      expiresAt: data.expiresAt,
+      user: {
+        email: data.user.email,
+        userId: data.user.userId,
+      },
+    };
 
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 
-  return session;
+    return session;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
 };
 
 export const mockLogout = async (): Promise<void> => {
@@ -58,5 +74,80 @@ export const refreshSession = async (session: AuthSession): Promise<AuthSession>
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
 
   return newSession;
+};
+
+const DATA_API_BASE = 'http://localhost:7002';
+
+export const toggleCreditLock = async (userId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/user/toggle-credit-lock`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to toggle credit lock');
+    }
+
+    const data = await response.json();
+    return data.creditLocked;
+  } catch (error) {
+    console.error('Error toggling credit lock:', error);
+    throw error;
+  }
+};
+
+export const getCreditLockStatus = async (userId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/user/get-credit-lock`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get credit lock status');
+    }
+
+    const data = await response.json();
+    return data.creditLocked;
+  } catch (error) {
+    console.error('Error getting credit lock status:', error);
+    throw error;
+  }
+};
+
+export const createTestUser = async (): Promise<{ email: string; password: string; userId: string }> => {
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/user/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        plan: 'plus',
+        requires2FA: false,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create test user');
+    }
+
+    const data = await response.json();
+    return {
+      email: data.email,
+      password: data.password,
+      userId: data.userId,
+    };
+  } catch (error) {
+    console.error('Error creating test user:', error);
+    throw error;
+  }
 };
 

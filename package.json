@@ -15,7 +15,8 @@
     "start:mcp-web": "npm run start --workspace=servers/mcp-web",
     "start:mcp-data": "npm run start --workspace=servers/mcp-data",
     "kill:servers": "bash scripts/kill-servers.sh",
-    "start:servers": "bash scripts/kill-servers.sh && concurrently \"npm run start:mcp-web\" \"npm run start:mcp-data\" --names \"web,data\" --prefix-colors \"cyan,magenta\"",
+    "build:servers": "npm run build --workspace=servers/mcp-web && npm run build --workspace=servers/mcp-data && npm run build --workspace=core/agent",
+    "start:servers": "npm run build:servers && bash scripts/kill-servers.sh && concurrently \"npm run start:mcp-web\" \"npm run start:mcp-data\" --names \"web,data\" --prefix-colors \"cyan,magenta\"",
     "agent": "npm run dev --workspace=core/agent",
     "test:all": "npm run agent scenarios/smoke/*.yaml",
     "test:scenario": "npm run agent"

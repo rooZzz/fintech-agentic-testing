@@ -43,6 +43,7 @@ export interface UINode {
   testId?: string;
   href?: string;
   value?: string;
+  ariaChecked?: boolean | 'mixed';
 }
 
 export interface Observation {

@@ -310,25 +310,36 @@ async function extractNodeInfo(el: ElementHandle, id: string, contextId: string)
   const box = await el.boundingBox();
   const isVisible = box !== null && box.width > 0 && box.height > 0;
   const isEnabled = await el.isEnabled().catch(() => true);
-  const isFocused = await el.evaluate((e) => e === document.activeElement).catch(() => false);
+  const isFocused = await el.evaluate((e: any) => e === e.ownerDocument.activeElement).catch(() => false);
   
   const role = await el.getAttribute('role') || await el.evaluate((e) => e.tagName.toLowerCase());
   const ariaLabel = await el.getAttribute('aria-label');
   const textContent = await el.textContent().catch(() => '');
   const name = ariaLabel || textContent?.trim().substring(0, 100) || '';
   
+  const ariaCheckedAttr = await el.getAttribute('aria-checked');
+  let ariaChecked: boolean | 'mixed' | undefined = undefined;
+  if (ariaCheckedAttr === 'true') {
+    ariaChecked = true;
+  } else if (ariaCheckedAttr === 'false') {
+    ariaChecked = false;
+  } else if (ariaCheckedAttr === 'mixed') {
+    ariaChecked = 'mixed';
+  }
+  
   return {
     id,
     role: role || 'unknown',
     name,
-    bounds: box || { x: 0, y: 0, w: 0, h: 0 },
+    bounds: box ? { x: box.x, y: box.y, w: box.width, h: box.height } : { x: 0, y: 0, w: 0, h: 0 },
     enabled: isEnabled,
     visible: isVisible,
     focused: isFocused,
     testId: await el.getAttribute('data-testid') || undefined,
     href: await el.getAttribute('href') || undefined,
     value: await el.evaluate((e: any) => e.value).catch(() => undefined),
-    tagName: await el.evaluate((e) => e.tagName.toLowerCase())
+    tagName: await el.evaluate((e) => e.tagName.toLowerCase()),
+    ariaChecked
   };
 }
 

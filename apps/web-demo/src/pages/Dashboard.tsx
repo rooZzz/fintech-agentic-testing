@@ -1,8 +1,42 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
+import { useAuth } from '@/auth/AuthContext';
+import { getCreditLockStatus, toggleCreditLock } from '@/api/auth';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const [creditLocked, setCreditLocked] = useState<boolean>(false);
+  const [isLoadingLockStatus, setIsLoadingLockStatus] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchCreditLockStatus = async () => {
+      if (session?.user?.userId) {
+        try {
+          const status = await getCreditLockStatus(session.user.userId);
+          setCreditLocked(status);
+        } catch (error) {
+          console.error('Failed to fetch credit lock status:', error);
+        } finally {
+          setIsLoadingLockStatus(false);
+        }
+      }
+    };
+
+    fetchCreditLockStatus();
+  }, [session?.user?.userId]);
+
+  const handleToggleCreditLock = async () => {
+    if (!session?.user?.userId) return;
+
+    try {
+      const newStatus = await toggleCreditLock(session.user.userId);
+      setCreditLocked(newStatus);
+    } catch (error) {
+      console.error('Failed to toggle credit lock:', error);
+    }
+  };
 
   const navigationTiles = [
     {
@@ -78,7 +112,34 @@ export const Dashboard = () => {
         <main role="main">
         <div className="mb-8">
           <div className="bg-gradient-to-r from-fintech-accent to-blue-600 rounded-xl shadow-lg p-8 text-white">
-            <h2 className="text-lg font-medium mb-2 opacity-90">Your Credit Score</h2>
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="text-lg font-medium opacity-90">Your Credit Score</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm opacity-90">
+                  {creditLocked ? '🔒 Locked' : '🔓 Unlocked'}
+                </span>
+                <button
+                  role="switch"
+                  aria-checked={creditLocked}
+                  aria-label="Credit report lock"
+                  data-testid="credit-lock-toggle"
+                  onClick={handleToggleCreditLock}
+                  disabled={isLoadingLockStatus}
+                  className={`
+                    relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                    ${creditLocked ? 'bg-white/30' : 'bg-white/50'}
+                    ${isLoadingLockStatus ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-white/60'}
+                  `}
+                >
+                  <span
+                    className={`
+                      inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+                      ${creditLocked ? 'translate-x-6' : 'translate-x-1'}
+                    `}
+                  />
+                </button>
+              </div>
+            </div>
             <div className="flex items-baseline gap-2">
               <span className="text-6xl font-bold">658</span>
               <span className="text-2xl opacity-75">/ 999</span>

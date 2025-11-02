@@ -1,0 +1,24 @@
+version: "0.1"
+id: credit-lock-persistence
+goal:
+  description: "Verify credit lock persists when navigating away and returning to dashboard"
+  success:
+    - comprehensive: "Credit lock remains enabled after navigating to loans and back to dashboard"
+
+context:
+  start_url: "http://localhost:5173/dashboard"
+
+preconditions:
+  - mcp: "data.user.create"
+    params:
+      plan: "plus"
+      requires2FA: false
+    store_as: "testUser"
+  - mcp: "data.loan.seed"
+    params:
+      count: 7
+
+constraints:
+  max_steps: 25
+  max_cost_usd: 0.60
+

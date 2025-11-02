@@ -20,7 +20,8 @@ export function createUser(params: {
     plan: params.plan,
     requires2FA: params.requires2FA || false,
     otpSecret: params.requires2FA ? generateOTPSecret() : undefined,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    creditLocked: false
   };
   
   users.set(userId, user);
@@ -202,5 +203,24 @@ export function resetAllLoans(): void {
 
 export function getLoanCount(): number {
   return loans.size;
+}
+
+export function toggleCreditLock(userId: string): boolean {
+  const user = getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
+  
+  user.creditLocked = !user.creditLocked;
+  return user.creditLocked;
+}
+
+export function getCreditLockStatus(userId: string): boolean {
+  const user = getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
+  
+  return user.creditLocked;
 }
 

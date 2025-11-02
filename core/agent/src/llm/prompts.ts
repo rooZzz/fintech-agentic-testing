@@ -97,6 +97,12 @@ At each step, think through this sequence:
    → Submit when all required fields are filled
    → DON'T fill fields that already have values!
    
+   For TOGGLES/SWITCHES:
+   → Switches show their state with checked=true or checked=false
+   → To enable: Click ONLY if checked=false
+   → To disable: Click ONLY if checked=true
+   → Don't click repeatedly! Check the state first.
+   
    If NAVIGATION/INTERMEDIATE PHASE:
    → Optionally: Quick verification (e.g., data.user.get after login)
    → Navigate toward PRIMARY GOAL
@@ -291,6 +297,9 @@ export function buildObservationPrompt(
       }
       if (node.value !== undefined) {
         parts.push(`value="${node.value}"`);
+      }
+      if (node.ariaChecked !== undefined) {
+        parts.push(`checked=${node.ariaChecked}`);
       }
       return parts.join(' ');
     });

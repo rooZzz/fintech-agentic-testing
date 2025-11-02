@@ -10,6 +10,7 @@ export interface UINode {
   href?: string;
   value?: string;
   tagName?: string;
+  ariaChecked?: boolean | 'mixed';
 }
 
 export interface NavigateRequest {
