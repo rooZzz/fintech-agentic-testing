@@ -5,12 +5,17 @@ export interface UINode {
   bounds: { x: number; y: number; w: number; h: number };
   enabled: boolean;
   visible: boolean;
-  focused: boolean;
+  focused?: boolean;
   testId?: string;
   href?: string;
   value?: string;
   tagName?: string;
   ariaChecked?: boolean | 'mixed';
+  label?: string;
+  placeholder?: string;
+  context?: string;
+  required?: boolean;
+  disabled?: boolean;
 }
 
 export interface NavigateRequest {

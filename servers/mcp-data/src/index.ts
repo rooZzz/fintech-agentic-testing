@@ -18,7 +18,8 @@ import {
   resetAllLoans,
   getLoanCount,
   toggleCreditLock,
-  getCreditLockStatus
+  getCreditLockStatus,
+  getCreditReport
 } from './factory.js';
 import { generateToken, validateCredentials } from './auth.js';
 
@@ -43,6 +44,10 @@ function createMCPServer() {
         {
           name: 'data.user.get',
           description: 'Fetch user data from database to verify displayed information',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -54,6 +59,10 @@ function createMCPServer() {
         {
           name: 'data.user.create',
           description: 'Create a test user (used in preconditions)',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -77,6 +86,10 @@ function createMCPServer() {
         {
           name: 'data.user.login',
           description: 'Authenticate user and get token',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -88,20 +101,12 @@ function createMCPServer() {
           }
         },
         {
-          name: 'data.loan.list',
-          description: 'List loan applications to verify backend state',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              amount: { type: 'number', description: 'Filter by amount' },
-              term: { type: 'number', description: 'Filter by term' },
-              loanType: { type: 'string', description: 'Filter by loan type' }
-            }
-          }
-        },
-        {
           name: 'data.loan.get',
           description: 'Get specific loan details for verification',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -113,6 +118,10 @@ function createMCPServer() {
         {
           name: 'data.loan.seed',
           description: 'Seed loan offers (used in preconditions)',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -123,6 +132,11 @@ function createMCPServer() {
         {
           name: 'data.loan.reset',
           description: 'Reset loan data',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true,
+            idempotentHint: true
+          },
           inputSchema: {
             type: 'object',
             properties: {}
@@ -131,6 +145,11 @@ function createMCPServer() {
         {
           name: 'data.reset',
           description: 'Reset test data (used in preconditions)',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true,
+            idempotentHint: true
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -142,6 +161,10 @@ function createMCPServer() {
         {
           name: 'data.user.getCreditLock',
           description: 'Get credit lock status for a user',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -153,6 +176,25 @@ function createMCPServer() {
         {
           name: 'data.user.toggleCreditLock',
           description: 'Toggle credit lock status for a user',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
+          inputSchema: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string', description: 'User ID' }
+            },
+            required: ['userId']
+          }
+        },
+        {
+          name: 'data.creditReport.get',
+          description: 'Fetch user credit report to verify displayed credit score and tradelines',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -259,13 +301,6 @@ function createMCPServer() {
           break;
         }
         
-        case 'data.loan.list': {
-          const { amount, term, loanType } = args as any;
-          const loans = listLoans({ amount, term, loanType });
-          result = { loans };
-          break;
-        }
-        
         case 'data.loan.get': {
           const { id } = args as any;
           
@@ -314,6 +349,16 @@ function createMCPServer() {
             userId,
             creditLocked
           };
+          break;
+        }
+        
+        case 'data.creditReport.get': {
+          const { userId } = args as any;
+          if (!userId) {
+            throw new Error('User ID is required');
+          }
+          const report = getCreditReport(userId);
+          result = report;
           break;
         }
         
@@ -475,6 +520,22 @@ fastify.post('/data/user/get-credit-lock', async (request, reply) => {
       userId,
       creditLocked
     });
+  } catch (error: any) {
+    reply.status(500).send({ error: error.message });
+  }
+});
+
+fastify.post('/data/credit-report/get', async (request, reply) => {
+  try {
+    const { userId } = request.body as any;
+    
+    if (!userId) {
+      return reply.status(400).send({ error: 'User ID is required.' });
+    }
+    
+    const report = getCreditReport(userId);
+    
+    reply.send(report);
   } catch (error: any) {
     reply.status(500).send({ error: error.message });
   }

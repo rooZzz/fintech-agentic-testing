@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { TestUser, LoanProduct, LoanType } from './types.js';
+import type { TestUser, LoanProduct, LoanType, CreditReport } from './types.js';
 
 const users: Map<string, TestUser> = new Map();
 const loans: Map<string, LoanProduct> = new Map();
@@ -222,5 +222,29 @@ export function getCreditLockStatus(userId: string): boolean {
   }
   
   return user.creditLocked;
+}
+
+export function getCreditReport(userId: string): CreditReport {
+  const user = getUserById(userId);
+  if (!user) {
+    throw new Error(`User not found: ${userId}`);
+  }
+  
+  const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const creditScore = 300 + (hash % 700);
+  
+  let scoreRating: CreditReport['scoreRating'];
+  if (creditScore < 580) scoreRating = 'POOR';
+  else if (creditScore < 670) scoreRating = 'FAIR';
+  else if (creditScore < 740) scoreRating = 'GOOD';
+  else if (creditScore < 800) scoreRating = 'VERY GOOD';
+  else scoreRating = 'EXCELLENT';
+  
+  return {
+    userId,
+    creditScore,
+    scoreRating,
+    lastUpdated: new Date().toISOString()
+  };
 }
 

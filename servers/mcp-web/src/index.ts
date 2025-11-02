@@ -11,6 +11,7 @@ import { browserManager } from './browser.js';
 import { ensureSessionsDir, getSessionPath, generateStateId } from './session.js';
 import { DebugLogger } from './debug-logger.js';
 import type { UINode } from './types.js';
+import { extractElementsInBrowser } from './browser-extract.js';
 
 const PORT = 7001;
 const debug = new DebugLogger('MCP_WEB');
@@ -33,12 +34,16 @@ function createMCPServer() {
       tools: [
         {
           name: 'ui.act.click',
-          description: 'Click an interactive element on the page',
+          description: 'Click an interactive element on the page. Prefer testId when available from observation.',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
-              testId: { type: 'string', description: 'data-testid attribute' },
-              selector: { type: 'string', description: 'CSS selector' },
+              testId: { type: 'string', description: 'data-testid attribute (PREFERRED - use this when element has testId in observation)' },
+              selector: { type: 'string', description: 'CSS selector (e.g., "#id", ".class", "button[type=submit]") - NOT role names' },
               nodeId: { type: 'string', description: 'Node identifier' },
               contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
             }
@@ -46,12 +51,16 @@ function createMCPServer() {
         },
         {
           name: 'ui.act.type',
-          description: 'Type text into an input field or select element',
+          description: 'Type text into an input field or select element. Prefer testId when available from observation.',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
-              testId: { type: 'string', description: 'data-testid attribute' },
-              selector: { type: 'string', description: 'CSS selector' },
+              testId: { type: 'string', description: 'data-testid attribute (PREFERRED - use this when element has testId in observation)' },
+              selector: { type: 'string', description: 'CSS selector (e.g., "#amount", "input[name=email]") - NOT role names' },
               nodeId: { type: 'string', description: 'Node identifier' },
               text: { type: 'string', description: 'Text to type' },
               clear: { type: 'boolean', description: 'Clear field first', default: false },
@@ -61,8 +70,30 @@ function createMCPServer() {
           }
         },
         {
+          name: 'ui.act.interact',
+          description: 'Smart interaction that automatically handles any element type: types into inputs, selects options, clicks buttons, toggles checkboxes. Prefer testId when available from observation.',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
+          inputSchema: {
+            type: 'object',
+            properties: {
+              testId: { type: 'string', description: 'data-testid attribute (PREFERRED - use this when element has testId in observation)' },
+              selector: { type: 'string', description: 'CSS selector (e.g., "select#term", "input.amount") - NOT role names' },
+              text: { type: 'string', description: 'Text to type or option to select (for inputs/selects)' },
+              checked: { type: 'boolean', description: 'Check/uncheck state (for checkboxes/radios)' },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            }
+          }
+        },
+        {
           name: 'ui.observe',
           description: 'Get current page state and visible elements',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -73,6 +104,10 @@ function createMCPServer() {
         {
           name: 'ui.navigate',
           description: 'Navigate to a URL',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -91,6 +126,10 @@ function createMCPServer() {
         {
           name: 'ui.query',
           description: 'Query elements on the page',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -106,6 +145,10 @@ function createMCPServer() {
         {
           name: 'session.save',
           description: 'Save browser session state',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -118,6 +161,10 @@ function createMCPServer() {
         {
           name: 'session.load',
           description: 'Load browser session state',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -130,6 +177,10 @@ function createMCPServer() {
         {
           name: 'browser.reset',
           description: 'Reset browser context',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: true
+          },
           inputSchema: {
             type: 'object',
             properties: {
@@ -206,43 +257,19 @@ function createMCPServer() {
             throw new Error('No browser context found. Navigate to a URL first.');
           }
           
-          const locator = ctx.page.locator('button, a, input, textarea, select, [role="button"], [role="link"], [role="textbox"], h1, h2, h3');
-          const elements = await locator.elementHandles();
-          
-          const nodes = await Promise.all(
-            elements.slice(0, 50).map(async (el, i) => {
-              return await extractNodeInfo(el, `node_${contextId}_${i}`, contextId);
-            })
-          );
-          
-          const visibleNodes = nodes.filter(n => n.visible);
-          const interactiveNodes = visibleNodes.filter(n => n.enabled);
+          const nodes = await extractInteractiveElements(ctx.page, contextId);
           
           result = {
-            nodes: visibleNodes,
+            nodes,
             url: ctx.page.url(),
             title: await ctx.page.title()
           };
           
           debug.log(`Observation for context ${contextId}`, {
             url: ctx.page.url(),
-            totalNodes: elements.length,
-            visibleNodes: visibleNodes.length,
-            interactiveNodes: interactiveNodes.length
+            nodeCount: nodes.length
           });
           
-          if (debug.isEnabled()) {
-            debug.table('Interactive Elements', 
-              interactiveNodes.slice(0, 20).map(n => ({
-                role: n.role,
-                name: n.name?.substring(0, 40),
-                testId: n.testId || '',
-                value: n.value || '',
-                ariaChecked: n.ariaChecked !== undefined ? n.ariaChecked : '',
-                href: n.href ? '(link)' : ''
-              }))
-            );
-          }
           break;
         }
         
@@ -314,6 +341,68 @@ function createMCPServer() {
             ok: true,
             message: 'Type successful'
           };
+          break;
+        }
+        
+        case 'ui.act.interact': {
+          const { selector, testId, text, checked, contextId = 'default' } = args as any;
+          
+          const ctx = await browserManager.getContext(contextId);
+          if (!ctx) {
+            throw new Error('No browser context found. Navigate to a URL first.');
+          }
+          
+          let targetSelector: string;
+          if (testId) {
+            targetSelector = `[data-testid="${testId}"]`;
+          } else if (selector) {
+            targetSelector = selector;
+          } else {
+            throw new Error('Must provide selector or testId');
+          }
+          
+          debug.log(`Interact action`, { target: targetSelector, text, checked });
+          
+          const element = await ctx.page.locator(targetSelector).first();
+          const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase()).catch(() => '');
+          const inputType = await element.evaluate((el: any) => el.type?.toLowerCase()).catch(() => '');
+          
+          if (tagName === 'select') {
+            if (text === undefined) {
+              throw new Error('text parameter required for select elements');
+            }
+            try {
+              await element.selectOption({ label: text }, { timeout: 5000 });
+            } catch (e) {
+              await element.selectOption({ value: text }, { timeout: 5000 });
+            }
+            result = { ok: true, message: 'Option selected', action: 'select' };
+          } else if (inputType === 'checkbox' || inputType === 'radio') {
+            if (checked !== undefined) {
+              if (checked) {
+                await element.check({ timeout: 5000 });
+              } else {
+                await element.uncheck({ timeout: 5000 });
+              }
+            } else {
+              await element.click({ timeout: 5000 });
+            }
+            result = { ok: true, message: 'Checkbox toggled', action: 'toggle' };
+          } else if (tagName === 'input' || tagName === 'textarea') {
+            if (text === undefined) {
+              throw new Error('text parameter required for input/textarea elements');
+            }
+            await ctx.page.fill(targetSelector, text, { timeout: 5000 });
+            result = { ok: true, message: 'Text entered', action: 'type' };
+          } else if (tagName === 'button' || tagName === 'a' || inputType === 'submit') {
+            await ctx.page.click(targetSelector, { timeout: 5000 });
+            result = { ok: true, message: 'Clicked', action: 'click' };
+          } else {
+            await ctx.page.click(targetSelector, { timeout: 5000 });
+            result = { ok: true, message: 'Clicked (default)', action: 'click' };
+          }
+          
+          await ctx.page.waitForTimeout(500);
           break;
         }
         
@@ -441,6 +530,12 @@ async function extractNodeInfo(el: ElementHandle, id: string, contextId: string)
     tagName: await el.evaluate((e) => e.tagName.toLowerCase()),
     ariaChecked
   };
+}
+
+async function extractInteractiveElements(page: any, contextId: string): Promise<UINode[]> {
+  const funcString = `(${extractElementsInBrowser.toString()})`;
+  const nodes = await page.evaluate(`${funcString}("${contextId}")`);
+  return nodes as UINode[];
 }
 
 const mcpServer = createMCPServer();

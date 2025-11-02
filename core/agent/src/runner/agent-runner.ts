@@ -3,7 +3,7 @@ import { mcpData, mcpWeb } from '../mcp/client.js';
 import { OpenAIClient } from '../llm/openai-client.js';
 import { JSONLLogger } from '../logger/jsonl-logger.js';
 import { DebugLogger } from '../logger/debug-logger.js';
-import { discoverAllTools, formatToolsForPrompt } from '../mcp/tool-discovery.js';
+import { discoverAllTools, formatToolsForPrompt, filterToolsForPreconditioner, filterToolsForValidator } from '../mcp/tool-discovery.js';
 
 export async function runScenario(
   spec: GoalSpec,
@@ -28,7 +28,6 @@ export async function runScenario(
 
   console.log('Discovering available MCP operations...');
   const discoveredTools = await discoverAllTools();
-  const toolsPrompt = formatToolsForPrompt(discoveredTools);
   console.log(`✓ Discovered ${discoveredTools.web.length + discoveredTools.data.length} operations`);
 
   const context: AgentContext = {
@@ -40,9 +39,13 @@ export async function runScenario(
   };
 
   try {
-    const client = new OpenAIClient(spec, toolsPrompt);
+    await runPreconditions(spec, context, logger, discoveredTools);
     
-    await runPreconditions(spec, context, logger, client, discoveredTools);
+    const validatorTools = filterToolsForValidator(discoveredTools);
+    const toolsPrompt = formatToolsForPrompt(validatorTools);
+    console.log(`✓ Validator agent: ${validatorTools.web.length} UI tools, ${validatorTools.data.length} read-only data tools`);
+    
+    const client = new OpenAIClient(spec, toolsPrompt);
 
     await mcpWeb.navigate({ url: spec.context.start_url, contextId });
 
@@ -51,35 +54,17 @@ export async function runScenario(
 
       debug.log(`Step ${step} Observation`, {
         url: observation.url,
-        totalNodes: observation.nodes.length,
-        visibleNodes: observation.nodes.filter(n => n.visible).length,
-        interactiveNodes: observation.nodes.filter(n => n.visible && n.enabled).length
+        nodeCount: observation.nodes.length
       });
-
-      if (process.env.DEBUG_OBSERVATIONS === 'true') {
-        debug.table('All Visible Nodes', 
-          observation.nodes
-            .filter(n => n.visible)
-            .map(n => ({
-              role: n.role,
-              name: n.name?.substring(0, 40),
-              testId: n.testId || '',
-              enabled: n.enabled,
-              ariaChecked: n.ariaChecked !== undefined ? String(n.ariaChecked) : '',
-              value: n.value || ''
-            }))
-        );
-      }
 
       console.log(`\nStep ${step}:`);
       console.log(`URL: ${observation.url}`);
-      console.log(`Interactive elements: ${observation.nodes.filter(n => n.visible && n.enabled).length}`);
 
-      const recentActions = context.steps.slice(-3).map(s => ({
+      const recentActions = context.steps.slice(-5).map(s => ({
         step: s.step,
         action: s.action,
         reasoning: s.reasoning,
-        result: s.result
+        result: s.action.type.startsWith('data.') ? s.result : undefined
       }));
 
       const { plan, tokens } = await client.planNextAction(
@@ -138,6 +123,41 @@ export async function runScenario(
           totalSteps: step,
           duration,
           totalCost: context.totalCost,
+        };
+      }
+
+      if (plan.action.type === 'goal.fail') {
+        console.log(`✗ Agent declares failure: ${plan.reasoning}`);
+
+        const duration = (Date.now() - startTime) / 1000;
+        logger.logScenarioEnd({
+          scenarioId: spec.id,
+          status: 'failure',
+          steps: step,
+          duration,
+          totalCost: context.totalCost,
+          timestamp: new Date().toISOString(),
+          error: plan.reasoning,
+        });
+
+        logger.logRunEnd({
+          runId,
+          status: 'failure',
+          duration,
+          totalCost: context.totalCost,
+          timestamp: new Date().toISOString(),
+        });
+
+        await mcpWeb.resetBrowser({ contextId });
+
+        return {
+          scenarioId: spec.id,
+          status: 'failure',
+          steps: context.steps,
+          totalSteps: step,
+          duration,
+          totalCost: context.totalCost,
+          error: plan.reasoning,
         };
       }
 
@@ -216,7 +236,6 @@ async function runPreconditions(
   spec: GoalSpec,
   context: AgentContext,
   logger: JSONLLogger,
-  client: OpenAIClient,
   discoveredTools: { web: any[]; data: any[] }
 ): Promise<void> {
   if (!spec.preconditions || spec.preconditions.length === 0) {
@@ -224,6 +243,14 @@ async function runPreconditions(
   }
 
   console.log('\nRunning preconditions:');
+  
+  const preconditionTools = filterToolsForPreconditioner(discoveredTools);
+  console.log(`✓ Preconditioner agent: ${preconditionTools.length} write-only data tools`);
+  
+  const preconditionPrompt = `Available Data Tools:\n${preconditionTools
+    .map(t => `- ${t.name}: ${t.description}`)
+    .join('\n')}`;
+  const preconditionClient = new OpenAIClient(spec, preconditionPrompt);
 
   for (let i = 0; i < spec.preconditions.length; i++) {
     const precondition: any = spec.preconditions[i];
@@ -236,9 +263,9 @@ async function runPreconditions(
     if (precondition.instruction) {
       console.log(`  ${i + 1}. "${precondition.instruction}"`);
       
-      const plan = await client.planPrecondition(
+      const plan = await preconditionClient.planPrecondition(
         precondition.instruction,
-        discoveredTools.data,
+        preconditionTools,
         context.variables
       );
       

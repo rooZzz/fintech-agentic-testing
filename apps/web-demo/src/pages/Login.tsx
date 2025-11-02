@@ -67,7 +67,7 @@ export const Login = () => {
           <p className="text-gray-600">Sign in to view your credit report</p>
         </div>
 
-        <button
+        {/* <button
           type="button"
           data-testid="create-test-user-button"
           onClick={handleCreateTestUser}
@@ -75,7 +75,7 @@ export const Login = () => {
           className="w-full mb-6 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isCreatingUser ? 'Creating Test User...' : 'Create & Login as Test User'}
-        </button>
+        </button> */}
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">

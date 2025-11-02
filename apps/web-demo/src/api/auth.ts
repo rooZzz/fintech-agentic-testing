@@ -151,3 +151,32 @@ export const createTestUser = async (): Promise<{ email: string; password: strin
   }
 };
 
+export interface CreditReport {
+  userId: string;
+  creditScore: number;
+  scoreRating: 'POOR' | 'FAIR' | 'GOOD' | 'VERY GOOD' | 'EXCELLENT';
+  lastUpdated: string;
+}
+
+export const getCreditReport = async (userId: string): Promise<CreditReport> => {
+  try {
+    const response = await fetch(`${DATA_API_BASE}/data/credit-report/get`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch credit report');
+    }
+
+    const report = await response.json() as CreditReport;
+    return report;
+  } catch (error) {
+    console.error('Error fetching credit report:', error);
+    throw error;
+  }
+};
+

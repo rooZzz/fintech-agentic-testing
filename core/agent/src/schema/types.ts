@@ -46,6 +46,11 @@ export interface UINode {
   href?: string;
   value?: string;
   ariaChecked?: boolean | 'mixed';
+  label?: string;
+  placeholder?: string;
+  context?: string;
+  required?: boolean;
+  disabled?: boolean;
 }
 
 export interface Observation {
@@ -55,7 +60,7 @@ export interface Observation {
 }
 
 export interface Action {
-  type: 'ui.act.click' | 'ui.act.type' | 'ui.navigate' | 'goal.complete';
+  type: 'ui.act.click' | 'ui.act.type' | 'ui.navigate' | 'goal.complete' | 'goal.fail';
   params?: Record<string, any>;
 }
 

@@ -123,12 +123,6 @@ export const mcpData = {
     return callTool(MCP_DATA_URL, 'data.loan.seed', params);
   },
 
-  async listLoans(params: { amount?: number; term?: number; loanType?: string } = {}): Promise<{
-    loans: any[];
-  }> {
-    return callTool(MCP_DATA_URL, 'data.loan.list', params);
-  },
-
   async getLoan(params: { id: string }): Promise<{
     loan: any;
   }> {
@@ -137,6 +131,10 @@ export const mcpData = {
 
   async resetLoans(): Promise<{ ok: boolean }> {
     return callTool(MCP_DATA_URL, 'data.loan.reset', {});
+  },
+
+  async getCreditReport(params: { userId: string }): Promise<any> {
+    return callTool(MCP_DATA_URL, 'data.creditReport.get', params);
   },
 
   async health(): Promise<{ ok: boolean }> {
@@ -171,7 +169,7 @@ export const mcpWeb = {
     return {
       url: response.url,
       title: response.title,
-      nodes: response.nodes.map((node: any) => ({
+      nodes: (response.nodes || []).map((node: any) => ({
         id: node.id || '',
         role: node.role || '',
         name: node.name || '',
@@ -182,6 +180,11 @@ export const mcpWeb = {
         href: node.href,
         value: node.value,
         ariaChecked: node.ariaChecked,
+        label: node.label,
+        placeholder: node.placeholder,
+        context: node.context,
+        required: node.required,
+        disabled: node.disabled,
       })),
     };
   },

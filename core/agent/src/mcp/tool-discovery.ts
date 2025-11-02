@@ -1,6 +1,11 @@
 interface Tool {
   name: string;
   description: string;
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+  };
   inputSchema?: {
     type: string;
     properties?: Record<string, any>;
@@ -109,13 +114,27 @@ function formatToolParams(tool: Tool): string {
   return `\n  Params:\n    ${params.join('\n    ')}`;
 }
 
+export function filterToolsForPreconditioner(tools: { data: Tool[] }): Tool[] {
+  return tools.data.filter(t => t.annotations?.readOnlyHint === false);
+}
+
+export function filterToolsForValidator(tools: { web: Tool[]; data: Tool[] }): { web: Tool[]; data: Tool[] } {
+  return {
+    web: tools.web,
+    data: tools.data.filter(t => t.annotations?.readOnlyHint === true)
+  };
+}
+
 export function formatToolsForPrompt(tools: { web: Tool[]; data: Tool[] }): string {
-  const uiTools = tools.web
-    .filter(t => t.name.startsWith('ui.act.'))
+  const webTools = tools.web || [];
+  const dataTools = tools.data || [];
+  
+  const uiTools = webTools
+    .filter(t => t.name.startsWith('ui.act.') || t.name.startsWith('ui.navigate'))
     .map(t => `- ${t.name}: ${t.description}${formatToolParams(t)}`)
     .join('\n');
   
-  const dataTools = tools.data
+  const dataToolsList = dataTools
     .filter(t => t.name.startsWith('data.'))
     .map(t => `- ${t.name}: ${t.description}${formatToolParams(t)}`)
     .join('\n');
@@ -123,11 +142,11 @@ export function formatToolsForPrompt(tools: { web: Tool[]; data: Tool[] }): stri
   return `
 Available MCP Operations:
 
-UI ACTIONS (for navigation):
+UI ACTIONS (for navigation and inspection):
 ${uiTools}
 
 DATA VERIFICATION (for validation):
-${dataTools}
+${dataToolsList}
 
 IMPORTANT: Use the exact parameter names shown above. Do not guess or improvise parameter names.
 `.trim();

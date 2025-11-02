@@ -1,6 +1,37 @@
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
+import { useAuth } from '@/auth/AuthContext';
+import { getCreditReport, type CreditReport as CreditReportType } from '@/api/auth';
 
 export const CreditReport = () => {
+  const { session } = useAuth();
+  const [creditReport, setCreditReport] = useState<CreditReportType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCreditReport = async () => {
+      if (!session?.user?.userId) {
+        setError('User not authenticated');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const report = await getCreditReport(session.user.userId);
+        setCreditReport(report);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch credit report:', err);
+        setError('Failed to load credit report');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCreditReport();
+  }, [session?.user?.userId]);
 
   const tradelines = [
     {
@@ -46,28 +77,38 @@ export const CreditReport = () => {
         <section className="mb-8">
           <div className="bg-white rounded-xl shadow-md p-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Credit Score Overview</h2>
-            <div
-              data-testid="credit-score-chart"
-              className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-12"
-              role="img"
-              aria-label="Credit score chart showing score of 658"
-            >
-              <div className="text-center">
-                <div className="text-7xl font-bold text-fintech-accent mb-2">658</div>
-                <div className="text-lg text-gray-600 mb-4">GOOD</div>
-                <div className="flex items-center justify-center gap-8 text-sm">
-                  <div className="text-center">
-                    <div className="text-gray-500">MIN</div>
-                    <div className="font-semibold text-gray-700">0</div>
-                  </div>
-                  <div className="w-48 h-3 bg-gradient-to-r from-red-400 via-yellow-400 via-green-400 to-emerald-500 rounded-full"></div>
-                  <div className="text-center">
-                    <div className="text-gray-500">MAX</div>
-                    <div className="font-semibold text-gray-700">999</div>
+            {loading ? (
+              <div className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-12">
+                <div className="text-center text-gray-600">Loading credit score...</div>
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center bg-red-50 rounded-lg p-12">
+                <div className="text-center text-red-600">{error}</div>
+              </div>
+            ) : creditReport ? (
+              <div
+                data-testid="credit-score-chart"
+                className="flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-12"
+                role="img"
+                aria-label={`Credit score chart showing score of ${creditReport.creditScore}`}
+              >
+                <div className="text-center">
+                  <div className="text-7xl font-bold text-fintech-accent mb-2">{creditReport.creditScore}</div>
+                  <div className="text-lg text-gray-600 mb-4">{creditReport.scoreRating}</div>
+                  <div className="flex items-center justify-center gap-8 text-sm">
+                    <div className="text-center">
+                      <div className="text-gray-500">MIN</div>
+                      <div className="font-semibold text-gray-700">300</div>
+                    </div>
+                    <div className="w-48 h-3 bg-gradient-to-r from-red-400 via-yellow-400 via-green-400 to-emerald-500 rounded-full"></div>
+                    <div className="text-center">
+                      <div className="text-gray-500">MAX</div>
+                      <div className="font-semibold text-gray-700">999</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </section>
 

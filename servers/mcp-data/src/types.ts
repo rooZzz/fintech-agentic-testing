@@ -93,3 +93,10 @@ export interface ListLoansResponse {
   loans: LoanProduct[];
 }
 
+export interface CreditReport {
+  userId: string;
+  creditScore: number;
+  scoreRating: 'POOR' | 'FAIR' | 'GOOD' | 'VERY GOOD' | 'EXCELLENT';
+  lastUpdated: string;
+}
+

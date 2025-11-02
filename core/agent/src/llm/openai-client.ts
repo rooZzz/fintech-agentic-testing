@@ -8,6 +8,8 @@ const PRICING: Record<string, { prompt: number; completion: number }> = {
   'gpt-4o': { prompt: 2.50, completion: 10.00 },
   'gpt-4-turbo': { prompt: 10.00, completion: 30.00 },
   'gpt-3.5-turbo': { prompt: 0.50, completion: 1.50 },
+  'gpt-5': { prompt: 2.50, completion: 10.00 },
+  'gpt-5-mini': { prompt: 0.20, completion: 0.80 },
 };
 
 export class OpenAIClient {
@@ -53,28 +55,57 @@ export class OpenAIClient {
     if (process.env.DEBUG_PROMPTS === 'true') {
       this.debug.log('Full User Prompt', userPrompt);
       
-      const switchNodes = observation.nodes.filter(n => n.role === 'switch');
-      if (switchNodes.length > 0) {
-        this.debug.log('Switch Nodes in Observation', switchNodes.map(n => ({
-          name: n.name,
-          testId: n.testId,
-          ariaChecked: n.ariaChecked
-        })));
+      if (observation.nodes) {
+        const switchNodes = observation.nodes.filter(n => n.role === 'switch');
+        if (switchNodes.length > 0) {
+          this.debug.log('Switch Nodes in Observation', switchNodes.map(n => ({
+            name: n.name,
+            testId: n.testId,
+            ariaChecked: n.ariaChecked
+          })));
+        }
       }
     }
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      temperature: 0.2,
-      max_tokens: 500,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: this.systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    });
+    const isGpt5 = this.model.startsWith('gpt-5');
+    let content: string | undefined;
+    let promptTokens = 0;
+    let completionTokens = 0;
 
-    const content = response.choices[0]?.message?.content;
+    if (isGpt5) {
+      const resp = await this.client.responses.create({
+        model: this.model,
+        text: { format: { type: 'json_object' } },
+        max_output_tokens: 500,
+        input: [
+          { role: 'system', content: this.systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      } as any);
+      content = (resp as any).output_text as string;
+      const usage = (resp as any).usage || {};
+      promptTokens = usage.input_tokens || usage.prompt_tokens || 0;
+      completionTokens = usage.output_tokens || usage.completion_tokens || 0;
+    } else {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        temperature: 0,
+        max_tokens: 500,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: this.systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      });
+      content = response.choices[0]?.message?.content || undefined;
+      const usage = response.usage;
+      if (!usage) {
+        throw new Error('No usage data from OpenAI');
+      }
+      promptTokens = usage.prompt_tokens;
+      completionTokens = usage.completion_tokens;
+    }
+
     if (!content) {
       throw new Error('No response from OpenAI');
     }
@@ -90,27 +121,22 @@ export class OpenAIClient {
       throw new Error(`Invalid action plan structure: ${JSON.stringify(plan)}`);
     }
 
-    const usage = response.usage;
-    if (!usage) {
-      throw new Error('No usage data from OpenAI');
-    }
-
-    const cost = this.calculateCost(usage.prompt_tokens, usage.completion_tokens);
+    const cost = this.calculateCost(promptTokens, completionTokens);
 
     this.debug.log(`LLM Response for Step ${stepNumber}`, {
       reasoning: plan.reasoning.substring(0, 100) + '...',
       actionType: plan.action.type,
       goalComplete: plan.action.type === 'goal.complete',
-      promptTokens: usage.prompt_tokens,
-      completionTokens: usage.completion_tokens,
+      promptTokens,
+      completionTokens,
       cost: cost.toFixed(4)
     });
 
     return {
       plan,
       tokens: {
-        prompt: usage.prompt_tokens,
-        completion: usage.completion_tokens,
+      prompt: promptTokens,
+      completion: completionTokens,
         cost,
       },
     };
@@ -179,17 +205,30 @@ Examples:
 - "Reset the database" → {"tool": "data.reset", "params": {}, "suggestedName": "reset", "description": "Database reset confirmation"}
 - "Enable credit lock for the user" (with user.userId in context) → {"tool": "data.user.toggleCreditLock", "params": {"userId": "abc-123"}, "suggestedName": "creditLockResult", "description": "Credit lock status after enabling"}`;
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      temperature: 0.1,
-      max_tokens: 200,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'user', content: prompt },
-      ],
-    });
-
-    const content = response.choices[0]?.message?.content;
+    const isGpt5 = this.model.startsWith('gpt-5');
+    let content: string | undefined;
+    if (isGpt5) {
+      const resp = await this.client.responses.create({
+        model: this.model,
+        text: { format: { type: 'json_object' } },
+        max_output_tokens: 400,
+        input: [
+          { role: 'user', content: prompt },
+        ],
+      } as any);
+      content = (resp as any).output_text as string;
+    } else {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        temperature: 0,
+        max_tokens: 400,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'user', content: prompt },
+        ],
+      });
+      content = response.choices[0]?.message?.content || undefined;
+    }
     if (!content) {
       throw new Error('No response from OpenAI for precondition planning');
     }
@@ -198,7 +237,38 @@ Examples:
     try {
       plan = JSON.parse(content);
     } catch (error) {
-      throw new Error(`Failed to parse precondition plan as JSON: ${content}`);
+      if (isGpt5) {
+        const resp = await this.client.responses.create({
+          model: this.model,
+          text: { format: { type: 'json_object' } },
+          max_output_tokens: 1024,
+          input: [
+            { role: 'user', content: prompt },
+          ],
+        } as any);
+        const retryContent = (resp as any).output_text as string;
+        try {
+          plan = JSON.parse(retryContent);
+        } catch {
+          throw new Error(`Failed to parse precondition plan as JSON after retry: ${retryContent}`);
+        }
+      } else {
+        const response = await this.client.chat.completions.create({
+          model: this.model,
+          temperature: 0,
+          max_tokens: 1024,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'user', content: prompt },
+          ],
+        });
+        const retryContent = response.choices[0]?.message?.content || '';
+        try {
+          plan = JSON.parse(retryContent);
+        } catch {
+          throw new Error(`Failed to parse precondition plan as JSON after retry: ${retryContent}`);
+        }
+      }
     }
 
     if (!plan.tool || !plan.suggestedName || !plan.description) {

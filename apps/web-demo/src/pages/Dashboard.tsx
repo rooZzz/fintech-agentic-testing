@@ -2,13 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/auth/AuthContext';
-import { getCreditLockStatus, toggleCreditLock } from '@/api/auth';
+import { getCreditLockStatus, toggleCreditLock, getCreditReport, type CreditReport } from '@/api/auth';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [creditLocked, setCreditLocked] = useState<boolean>(false);
   const [isLoadingLockStatus, setIsLoadingLockStatus] = useState<boolean>(true);
+  const [creditReport, setCreditReport] = useState<CreditReport | null>(null);
+  const [isLoadingCreditScore, setIsLoadingCreditScore] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchCreditLockStatus = async () => {
@@ -24,7 +26,21 @@ export const Dashboard = () => {
       }
     };
 
+    const fetchCreditScore = async () => {
+      if (session?.user?.userId) {
+        try {
+          const report = await getCreditReport(session.user.userId);
+          setCreditReport(report);
+        } catch (error) {
+          console.error('Failed to fetch credit report:', error);
+        } finally {
+          setIsLoadingCreditScore(false);
+        }
+      }
+    };
+
     fetchCreditLockStatus();
+    fetchCreditScore();
   }, [session?.user?.userId]);
 
   const handleToggleCreditLock = async () => {
@@ -140,11 +156,23 @@ export const Dashboard = () => {
                 </button>
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-6xl font-bold">658</span>
-              <span className="text-2xl opacity-75">/ 999</span>
-            </div>
-            <p className="mt-4 text-sm opacity-90">Good - Last updated today</p>
+            {isLoadingCreditScore ? (
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl opacity-75">Loading...</span>
+              </div>
+            ) : creditReport ? (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-6xl font-bold">{creditReport.creditScore}</span>
+                  <span className="text-2xl opacity-75">/ 999</span>
+                </div>
+                <p className="mt-4 text-sm opacity-90">{creditReport.scoreRating} - Last updated today</p>
+              </>
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl opacity-75">Unable to load credit score</span>
+              </div>
+            )}
           </div>
         </div>
 
