@@ -9,14 +9,8 @@ context:
   start_url: "http://localhost:5173/dashboard"
 
 preconditions:
-  - mcp: "data.user.create"
-    params:
-      plan: "plus"
-      requires2FA: false
-    store_as: "testUser"
-  - mcp: "data.loan.seed"
-    params:
-      count: 7
+  - instruction: "Create a test user with a plus plan"
+  - instruction: "Seed 7 loan offers"
 
 constraints:
   max_steps: 30

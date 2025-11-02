@@ -2,6 +2,7 @@ import { GoalSpec, ScenarioResult, StepResult, AgentContext } from '../schema/ty
 import { mcpData, mcpWeb } from '../mcp/client.js';
 import { OpenAIClient } from '../llm/openai-client.js';
 import { JSONLLogger } from '../logger/jsonl-logger.js';
+import { DebugLogger } from '../logger/debug-logger.js';
 import { discoverAllTools, formatToolsForPrompt } from '../mcp/tool-discovery.js';
 
 export async function runScenario(
@@ -10,6 +11,7 @@ export async function runScenario(
 ): Promise<ScenarioResult> {
   const startTime = Date.now();
   const logger = new JSONLLogger(outputPath);
+  const debug = new DebugLogger('AGENT');
   const runId = `run_${Date.now()}`;
   const contextId = `agent_${runId}`;
 
@@ -38,14 +40,36 @@ export async function runScenario(
   };
 
   try {
-    await runPreconditions(spec, context, logger);
-
     const client = new OpenAIClient(spec, toolsPrompt);
+    
+    await runPreconditions(spec, context, logger, client, discoveredTools);
 
     await mcpWeb.navigate({ url: spec.context.start_url, contextId });
 
     for (let step = 1; step <= spec.constraints.max_steps; step++) {
       const observation = await mcpWeb.observe(contextId);
+
+      debug.log(`Step ${step} Observation`, {
+        url: observation.url,
+        totalNodes: observation.nodes.length,
+        visibleNodes: observation.nodes.filter(n => n.visible).length,
+        interactiveNodes: observation.nodes.filter(n => n.visible && n.enabled).length
+      });
+
+      if (process.env.DEBUG_OBSERVATIONS === 'true') {
+        debug.table('All Visible Nodes', 
+          observation.nodes
+            .filter(n => n.visible)
+            .map(n => ({
+              role: n.role,
+              name: n.name?.substring(0, 40),
+              testId: n.testId || '',
+              enabled: n.enabled,
+              ariaChecked: n.ariaChecked !== undefined ? String(n.ariaChecked) : '',
+              value: n.value || ''
+            }))
+        );
+      }
 
       console.log(`\nStep ${step}:`);
       console.log(`URL: ${observation.url}`);
@@ -67,8 +91,15 @@ export async function runScenario(
 
       context.totalCost += tokens.cost;
 
+      debug.log(`Step ${step} Decision`, {
+        reasoning: plan.reasoning,
+        actionType: plan.action.type,
+        actionParams: plan.action.params,
+        tokens: { prompt: tokens.prompt, completion: tokens.completion, cost: tokens.cost }
+      });
+
       console.log(`Reasoning: ${plan.reasoning}`);
-      console.log(`Action: ${plan.action.type} ${JSON.stringify(plan.action.params)}`);
+      console.log(`Action: ${plan.action.type} ${JSON.stringify(plan.action.params || {})}`);
       console.log(`Cost: $${tokens.cost.toFixed(4)} (total: $${context.totalCost.toFixed(4)})`);
 
       if (context.totalCost > spec.constraints.max_cost_usd) {
@@ -77,7 +108,7 @@ export async function runScenario(
         );
       }
 
-      if (plan.goalMet) {
+      if (plan.action.type === 'goal.complete') {
         console.log(`✓ Agent declares goal met: ${plan.reasoning}`);
         
         const duration = (Date.now() - startTime) / 1000;
@@ -184,7 +215,9 @@ export async function runScenario(
 async function runPreconditions(
   spec: GoalSpec,
   context: AgentContext,
-  logger: JSONLLogger
+  logger: JSONLLogger,
+  client: OpenAIClient,
+  discoveredTools: { web: any[]; data: any[] }
 ): Promise<void> {
   if (!spec.preconditions || spec.preconditions.length === 0) {
     return;
@@ -193,55 +226,98 @@ async function runPreconditions(
   console.log('\nRunning preconditions:');
 
   for (let i = 0; i < spec.preconditions.length; i++) {
-    const precondition = spec.preconditions[i];
-    console.log(`  ${i + 1}. ${precondition.mcp}(${JSON.stringify(precondition.params)})`);
+    const precondition: any = spec.preconditions[i];
+    let toolName: string;
+    let params: any;
+    let suggestedName: string | undefined;
 
-    let result: any;
-
-    if (precondition.mcp === 'data.user.create') {
-      result = await mcpData.createUser(precondition.params as { plan: string; requires2FA: boolean });
-    } else if (precondition.mcp === 'data.reset') {
-      result = await mcpData.reset(precondition.params);
-    } else if (precondition.mcp === 'data.loan.seed') {
-      result = await mcpData.seedLoans(precondition.params as { count?: number });
-    } else if (precondition.mcp === 'data.loan.list') {
-      result = await mcpData.listLoans(precondition.params as { amount?: number; term?: number; loanType?: string });
-    } else if (precondition.mcp === 'data.loan.reset') {
-      result = await mcpData.resetLoans();
+    let description: string | undefined;
+    
+    if (precondition.instruction) {
+      console.log(`  ${i + 1}. "${precondition.instruction}"`);
+      
+      const plan = await client.planPrecondition(
+        precondition.instruction,
+        discoveredTools.data,
+        context.variables
+      );
+      
+      toolName = plan.tool;
+      params = plan.params;
+      suggestedName = plan.suggestedName;
+      description = plan.description;
+      
+      console.log(`      → ${toolName}(${JSON.stringify(params)})`);
+    } else if (precondition.mcp) {
+      toolName = precondition.mcp;
+      params = precondition.params || {};
+      console.log(`  ${i + 1}. ${toolName}(${JSON.stringify(params)})`);
     } else {
-      throw new Error(`Unknown precondition MCP: ${precondition.mcp}`);
+      throw new Error('Precondition must have either "instruction" or "mcp" field');
     }
 
-    if (precondition.store_as) {
-      context.variables[precondition.store_as] = result;
-      console.log(`    Stored as: ${precondition.store_as}`);
+    const result = await dispatchAction(
+      { type: toolName, params },
+      'precondition'
+    );
+
+    const storeName = precondition.as 
+      || precondition.store_as 
+      || suggestedName 
+      || inferStorageName(toolName);
+
+    if (storeName && storeName !== 'none') {
+      context.variables[storeName] = {
+        _meta: {
+          description: description || `Data from ${toolName}`,
+          createdBy: toolName,
+        },
+        ...result
+      };
+      console.log(`      Stored as: ${storeName}`);
     }
 
     logger.logPrecondition({
       step: i,
-      action: precondition.mcp,
-      params: precondition.params,
+      action: toolName,
+      params: params,
       result,
       timestamp: new Date().toISOString(),
     });
   }
 }
 
+function inferStorageName(toolName: string): string {
+  if (toolName.includes('user.create') || toolName.includes('user.get')) {
+    return 'user';
+  }
+  if (toolName.includes('loan.seed') || toolName.includes('loan.list')) {
+    return 'loans';
+  }
+  if (toolName.includes('loan.get')) {
+    return 'loan';
+  }
+  if (toolName.includes('reset')) {
+    return 'none';
+  }
+  
+  const parts = toolName.split('.');
+  return parts[parts.length - 1] || 'result';
+}
+
 async function dispatchAction(action: any, contextId: string): Promise<any> {
-  if (action.type === 'ui.act.click') {
-    return await mcpWeb.click({ ...action.params, contextId });
-  } else if (action.type === 'ui.act.type') {
-    return await mcpWeb.type({ ...action.params, contextId });
-  } else if (action.type === 'ui.navigate') {
-    return await mcpWeb.navigate({ ...action.params, contextId });
-  } else if (action.type === 'data.user.get') {
-    return await mcpData.getUser(action.params);
-  } else if (action.type === 'data.loan.list') {
-    return await mcpData.listLoans(action.params);
-  } else if (action.type === 'data.loan.get') {
-    return await mcpData.getLoan(action.params);
+  const { type, params } = action;
+  
+  if (type.startsWith('ui.')) {
+    return await mcpWeb.callTool(type, { ...params, contextId });
+  } else if (type.startsWith('data.')) {
+    return await mcpData.callTool(type, params);
+  } else if (type.startsWith('session.')) {
+    return await mcpWeb.callTool(type, { ...params, contextId });
+  } else if (type.startsWith('browser.')) {
+    return await mcpWeb.callTool(type, { ...params, contextId });
   } else {
-    throw new Error(`Unknown action type: ${action.type}`);
+    throw new Error(`Unknown action type: ${type}`);
   }
 }
 

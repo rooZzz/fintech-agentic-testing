@@ -19,7 +19,11 @@
     "start:servers": "npm run build:servers && bash scripts/kill-servers.sh && concurrently \"npm run start:mcp-web\" \"npm run start:mcp-data\" --names \"web,data\" --prefix-colors \"cyan,magenta\"",
     "agent": "npm run dev --workspace=core/agent",
     "test:all": "npm run agent scenarios/smoke/*.yaml",
-    "test:scenario": "npm run agent"
+    "test:scenario": "npm run agent",
+    "test:debug": "DEBUG_ALL=true npm run agent",
+    "test:debug:prompts": "DEBUG_PROMPTS=true DEBUG_AGENT=true npm run agent",
+    "test:debug:observations": "DEBUG_OBSERVATIONS=true DEBUG_AGENT=true npm run agent",
+    "test:debug:web": "DEBUG_MCP_WEB=true npm run agent"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

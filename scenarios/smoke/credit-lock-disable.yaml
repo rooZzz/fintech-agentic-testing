@@ -9,14 +9,8 @@ context:
   start_url: "http://localhost:5173/dashboard"
 
 preconditions:
-  - mcp: "data.user.create"
-    params:
-      plan: "plus"
-      requires2FA: false
-    store_as: "testUser"
-  - mcp: "data.user.toggleCreditLock"
-    params:
-      userId: "{{testUser.userId}}"
+  - instruction: "Create a test user with a plus plan"
+  - instruction: "Enable credit lock for the user"
 
 constraints:
   max_steps: 15

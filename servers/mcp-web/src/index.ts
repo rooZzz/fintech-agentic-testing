@@ -1,310 +1,410 @@
-import express from 'express';
-import cors from 'cors';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { 
+  CallToolRequestSchema, 
+  ListToolsRequestSchema
+} from '@modelcontextprotocol/sdk/types.js';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import { ElementHandle } from 'playwright';
 import { browserManager } from './browser.js';
 import { ensureSessionsDir, getSessionPath, generateStateId } from './session.js';
-import type {
-  NavigateRequest,
-  NavigateResponse,
-  QueryRequest,
-  QueryResponse,
-  ObserveRequest,
-  ObserveResponse,
-  ClickRequest,
-  ClickResponse,
-  TypeRequest,
-  TypeResponse,
-  SessionSaveRequest,
-  SessionSaveResponse,
-  SessionLoadRequest,
-  SessionLoadResponse,
-  UINode
-} from './types.js';
+import { DebugLogger } from './debug-logger.js';
+import type { UINode } from './types.js';
 
-const app = express();
 const PORT = 7001;
+const debug = new DebugLogger('MCP_WEB');
 
-app.use(cors());
-app.use(express.json());
-
-app.post('/ui/navigate', async (req, res) => {
-  try {
-    const { url, contextId = 'default', waitUntil = 'domcontentloaded' } = req.body as NavigateRequest;
-    
-    const ctx = await browserManager.getOrCreateContext(contextId);
-    await ctx.page.goto(url, { waitUntil });
-    
-    const response: NavigateResponse = {
-      ok: true,
-      currentUrl: ctx.page.url(),
-      title: await ctx.page.title()
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/ui/query', async (req, res) => {
-  try {
-    const { role, name, text, selector, testId, contextId = 'default' } = req.body as QueryRequest;
-    
-    const ctx = await browserManager.getContext(contextId);
-    if (!ctx) {
-      return res.status(400).json({ error: 'No browser context found. Navigate to a URL first.' });
-    }
-    
-    let locator;
-    
-    if (testId) {
-      locator = ctx.page.locator(`[data-testid="${testId}"]`);
-    } else if (role) {
-      locator = ctx.page.getByRole(role as any, name ? { name } : undefined);
-    } else if (text) {
-      locator = ctx.page.getByText(text);
-    } else if (selector) {
-      locator = ctx.page.locator(selector);
-    } else {
-      locator = ctx.page.locator('button, a, input, textarea, select, [role="button"], [role="link"], [role="textbox"]');
-    }
-    
-    const elements = await locator.elementHandles();
-    
-    const nodes = await Promise.all(
-      elements.slice(0, 50).map(async (el, i) => {
-        return await extractNodeInfo(el, `node_${contextId}_${i}`, contextId);
-      })
-    );
-    
-    const response: QueryResponse = {
-      nodes: nodes.filter(n => n.visible)
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/ui/observe', async (req, res) => {
-  try {
-    const { contextId = 'default' } = req.body as ObserveRequest;
-    
-    const ctx = await browserManager.getContext(contextId);
-    if (!ctx) {
-      return res.status(400).json({ error: 'No browser context found. Navigate to a URL first.' });
-    }
-    
-    const locator = ctx.page.locator('button, a, input, textarea, select, [role="button"], [role="link"], [role="textbox"], h1, h2, h3');
-    const elements = await locator.elementHandles();
-    
-    const nodes = await Promise.all(
-      elements.slice(0, 50).map(async (el, i) => {
-        return await extractNodeInfo(el, `node_${contextId}_${i}`, contextId);
-      })
-    );
-    
-    const response: ObserveResponse = {
-      nodes: nodes.filter(n => n.visible),
-      url: ctx.page.url(),
-      title: await ctx.page.title()
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/ui/act/click', async (req, res) => {
-  try {
-    const { nodeId, selector, testId, contextId = 'default' } = req.body as ClickRequest;
-    
-    const ctx = await browserManager.getContext(contextId);
-    if (!ctx) {
-      return res.status(400).json({ error: 'No browser context found. Navigate to a URL first.' });
-    }
-    
-    if (testId) {
-      await ctx.page.click(`[data-testid="${testId}"]`, { timeout: 5000 });
-    } else if (selector) {
-      await ctx.page.click(selector, { timeout: 5000 });
-    } else if (nodeId) {
-      return res.status(400).json({ error: 'nodeId-based clicking not yet implemented. Use selector or testId instead.' });
-    } else {
-      return res.status(400).json({ error: 'Must provide selector, testId, or nodeId' });
-    }
-    
-    await ctx.page.waitForTimeout(500);
-    
-    const response: ClickResponse = {
-      ok: true,
-      message: 'Click successful'
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, ok: false });
-  }
-});
-
-app.post('/ui/act/type', async (req, res) => {
-  try {
-    const { nodeId, selector, testId, text, clear = false, contextId = 'default' } = req.body as TypeRequest;
-    
-    const ctx = await browserManager.getContext(contextId);
-    if (!ctx) {
-      return res.status(400).json({ error: 'No browser context found. Navigate to a URL first.' });
-    }
-    
-    let targetSelector: string;
-    
-    if (testId) {
-      targetSelector = `[data-testid="${testId}"]`;
-    } else if (selector) {
-      targetSelector = selector;
-    } else if (nodeId) {
-      return res.status(400).json({ error: 'nodeId-based typing not yet implemented. Use selector or testId instead.' });
-    } else {
-      return res.status(400).json({ error: 'Must provide selector, testId, or nodeId' });
-    }
-    
-    const element = await ctx.page.locator(targetSelector).first();
-    const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase()).catch(() => '');
-    
-    if (tagName === 'select') {
-      await element.selectOption(text, { timeout: 5000 });
-    } else {
-      if (clear) {
-        await ctx.page.fill(targetSelector, '');
-      }
-      await ctx.page.type(targetSelector, text, { timeout: 5000 });
-    }
-    
-    const response: TypeResponse = {
-      ok: true,
-      message: 'Type successful'
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, ok: false });
-  }
-});
-
-app.post('/session/save', async (req, res) => {
-  try {
-    const { name, contextId = 'default' } = req.body as SessionSaveRequest;
-    
-    const ctx = await browserManager.getContext(contextId);
-    if (!ctx) {
-      return res.status(400).json({ error: 'No browser context found. Navigate to a URL first.' });
-    }
-    
-    await ensureSessionsDir();
-    
-    const stateId = generateStateId(name);
-    const path = getSessionPath(stateId);
-    
-    await ctx.context.storageState({ path });
-    
-    const response: SessionSaveResponse = {
-      stateId,
-      path
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/session/load', async (req, res) => {
-  try {
-    const { stateId, contextId = 'default' } = req.body as SessionLoadRequest;
-    
-    const existingCtx = await browserManager.getContext(contextId);
-    if (existingCtx) {
-      await browserManager.closeContext(contextId);
-    }
-    
-    const browser = await browserManager.ensureBrowser();
-    const path = getSessionPath(stateId);
-    
-    const context = await browser.newContext({
-      viewport: { width: 1280, height: 720 },
-      storageState: path
-    });
-    
-    const page = await context.newPage();
-    
-    const ctx = { context, page };
-    (browserManager as any).contexts.set(contextId, ctx);
-    
-    const response: SessionLoadResponse = {
-      ok: true
-    };
-    
-    res.json(response);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, ok: false });
-  }
-});
-
-app.post('/browser/reset', async (req, res) => {
-  try {
-    const { contextId = 'default' } = req.body;
-    
-    await browserManager.closeContext(contextId);
-    
-    res.json({
-      ok: true,
-      message: `Context ${contextId} closed and reset`
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/tools', (req, res) => {
-  const tools = [
+function createMCPServer() {
+  const server = new Server(
     {
-      name: 'ui.act.click',
-      description: 'Click an interactive element on the page',
-      params: {
-        testId: 'string (optional) - data-testid attribute',
-        selector: 'string (optional) - CSS selector',
-        nodeId: 'string (optional) - Node identifier'
-      }
+      name: 'mcp-web',
+      version: '0.1.0',
     },
     {
-      name: 'ui.act.type',
-      description: 'Type text into an input field or select element',
-      params: {
-        testId: 'string (optional) - data-testid attribute',
-        selector: 'string (optional) - CSS selector',
-        text: 'string (required) - Text to type',
-        clear: 'boolean (optional) - Clear field first'
-      }
-    },
-    {
-      name: 'ui.observe',
-      description: 'Get current page state and visible elements',
-      params: {}
+      capabilities: {
+        tools: {},
+      },
     }
-  ];
-  
-  res.json({ tools });
-});
+  );
 
-app.get('/health', (req, res) => {
-  res.json({
-    ok: true,
-    contexts: browserManager.getContextCount(),
-    timestamp: new Date().toISOString()
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return {
+      tools: [
+        {
+          name: 'ui.act.click',
+          description: 'Click an interactive element on the page',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              testId: { type: 'string', description: 'data-testid attribute' },
+              selector: { type: 'string', description: 'CSS selector' },
+              nodeId: { type: 'string', description: 'Node identifier' },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            }
+          }
+        },
+        {
+          name: 'ui.act.type',
+          description: 'Type text into an input field or select element',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              testId: { type: 'string', description: 'data-testid attribute' },
+              selector: { type: 'string', description: 'CSS selector' },
+              nodeId: { type: 'string', description: 'Node identifier' },
+              text: { type: 'string', description: 'Text to type' },
+              clear: { type: 'boolean', description: 'Clear field first', default: false },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            },
+            required: ['text']
+          }
+        },
+        {
+          name: 'ui.observe',
+          description: 'Get current page state and visible elements',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            }
+          }
+        },
+        {
+          name: 'ui.navigate',
+          description: 'Navigate to a URL',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: 'URL to navigate to' },
+              waitUntil: { 
+                type: 'string', 
+                description: 'When to consider navigation complete',
+                enum: ['load', 'domcontentloaded', 'networkidle'],
+                default: 'domcontentloaded'
+              },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            },
+            required: ['url']
+          }
+        },
+        {
+          name: 'ui.query',
+          description: 'Query elements on the page',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              role: { type: 'string', description: 'ARIA role' },
+              name: { type: 'string', description: 'Accessible name' },
+              text: { type: 'string', description: 'Text content' },
+              selector: { type: 'string', description: 'CSS selector' },
+              testId: { type: 'string', description: 'data-testid attribute' },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            }
+          }
+        },
+        {
+          name: 'session.save',
+          description: 'Save browser session state',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Session name' },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            },
+            required: ['name']
+          }
+        },
+        {
+          name: 'session.load',
+          description: 'Load browser session state',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              stateId: { type: 'string', description: 'Session state ID' },
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            },
+            required: ['stateId']
+          }
+        },
+        {
+          name: 'browser.reset',
+          description: 'Reset browser context',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              contextId: { type: 'string', description: 'Browser context ID', default: 'default' }
+            }
+          }
+        }
+      ]
+    };
   });
-});
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    
+    try {
+      let result: any;
+      
+      switch (name) {
+        case 'ui.navigate': {
+          const { url, contextId = 'default', waitUntil = 'domcontentloaded' } = args as any;
+          
+          const ctx = await browserManager.getOrCreateContext(contextId);
+          await ctx.page.goto(url, { waitUntil });
+          
+          result = {
+            ok: true,
+            currentUrl: ctx.page.url(),
+            title: await ctx.page.title()
+          };
+          break;
+        }
+        
+        case 'ui.query': {
+          const { role, name: elementName, text, selector, testId, contextId = 'default' } = args as any;
+          
+          const ctx = await browserManager.getContext(contextId);
+          if (!ctx) {
+            throw new Error('No browser context found. Navigate to a URL first.');
+          }
+          
+          let locator;
+          
+          if (testId) {
+            locator = ctx.page.locator(`[data-testid="${testId}"]`);
+          } else if (role) {
+            locator = ctx.page.getByRole(role as any, elementName ? { name: elementName } : undefined);
+          } else if (text) {
+            locator = ctx.page.getByText(text);
+          } else if (selector) {
+            locator = ctx.page.locator(selector);
+          } else {
+            locator = ctx.page.locator('button, a, input, textarea, select, [role="button"], [role="link"], [role="textbox"]');
+          }
+          
+          const elements = await locator.elementHandles();
+          
+          const nodes = await Promise.all(
+            elements.slice(0, 50).map(async (el, i) => {
+              return await extractNodeInfo(el, `node_${contextId}_${i}`, contextId);
+            })
+          );
+          
+          result = {
+            nodes: nodes.filter(n => n.visible)
+          };
+          break;
+        }
+        
+        case 'ui.observe': {
+          const { contextId = 'default' } = args as any;
+          
+          const ctx = await browserManager.getContext(contextId);
+          if (!ctx) {
+            throw new Error('No browser context found. Navigate to a URL first.');
+          }
+          
+          const locator = ctx.page.locator('button, a, input, textarea, select, [role="button"], [role="link"], [role="textbox"], h1, h2, h3');
+          const elements = await locator.elementHandles();
+          
+          const nodes = await Promise.all(
+            elements.slice(0, 50).map(async (el, i) => {
+              return await extractNodeInfo(el, `node_${contextId}_${i}`, contextId);
+            })
+          );
+          
+          const visibleNodes = nodes.filter(n => n.visible);
+          const interactiveNodes = visibleNodes.filter(n => n.enabled);
+          
+          result = {
+            nodes: visibleNodes,
+            url: ctx.page.url(),
+            title: await ctx.page.title()
+          };
+          
+          debug.log(`Observation for context ${contextId}`, {
+            url: ctx.page.url(),
+            totalNodes: elements.length,
+            visibleNodes: visibleNodes.length,
+            interactiveNodes: interactiveNodes.length
+          });
+          
+          if (debug.isEnabled()) {
+            debug.table('Interactive Elements', 
+              interactiveNodes.slice(0, 20).map(n => ({
+                role: n.role,
+                name: n.name?.substring(0, 40),
+                testId: n.testId || '',
+                value: n.value || '',
+                ariaChecked: n.ariaChecked !== undefined ? n.ariaChecked : '',
+                href: n.href ? '(link)' : ''
+              }))
+            );
+          }
+          break;
+        }
+        
+        case 'ui.act.click': {
+          const { nodeId, selector, testId, contextId = 'default' } = args as any;
+          
+          const ctx = await browserManager.getContext(contextId);
+          if (!ctx) {
+            throw new Error('No browser context found. Navigate to a URL first.');
+          }
+          
+          const target = testId ? `[data-testid="${testId}"]` : selector;
+          debug.log(`Click action`, { target, testId, selector });
+          
+          if (testId) {
+            await ctx.page.click(`[data-testid="${testId}"]`, { timeout: 5000 });
+          } else if (selector) {
+            await ctx.page.click(selector, { timeout: 5000 });
+          } else if (nodeId) {
+            throw new Error('nodeId-based clicking not yet implemented. Use selector or testId instead.');
+          } else {
+            throw new Error('Must provide selector, testId, or nodeId');
+          }
+          
+          await ctx.page.waitForTimeout(500);
+          
+          result = {
+            ok: true,
+            message: 'Click successful'
+          };
+          break;
+        }
+        
+        case 'ui.act.type': {
+          const { nodeId, selector, testId, text, clear = false, contextId = 'default' } = args as any;
+          
+          const ctx = await browserManager.getContext(contextId);
+          if (!ctx) {
+            throw new Error('No browser context found. Navigate to a URL first.');
+          }
+          
+          let targetSelector: string;
+          
+          if (testId) {
+            targetSelector = `[data-testid="${testId}"]`;
+          } else if (selector) {
+            targetSelector = selector;
+          } else if (nodeId) {
+            throw new Error('nodeId-based typing not yet implemented. Use selector or testId instead.');
+          } else {
+            throw new Error('Must provide selector, testId, or nodeId');
+          }
+          
+          debug.log(`Type action`, { target: targetSelector, textLength: text.length, clear });
+          
+          const element = await ctx.page.locator(targetSelector).first();
+          const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase()).catch(() => '');
+          
+          if (tagName === 'select') {
+            await element.selectOption(text, { timeout: 5000 });
+          } else {
+            if (clear) {
+              await ctx.page.fill(targetSelector, '');
+            }
+            await ctx.page.type(targetSelector, text, { timeout: 5000 });
+          }
+          
+          result = {
+            ok: true,
+            message: 'Type successful'
+          };
+          break;
+        }
+        
+        case 'session.save': {
+          const { name, contextId = 'default' } = args as any;
+          
+          const ctx = await browserManager.getContext(contextId);
+          if (!ctx) {
+            throw new Error('No browser context found. Navigate to a URL first.');
+          }
+          
+          await ensureSessionsDir();
+          
+          const stateId = generateStateId(name);
+          const path = getSessionPath(stateId);
+          
+          await ctx.context.storageState({ path });
+          
+          result = {
+            stateId,
+            path
+          };
+          break;
+        }
+        
+        case 'session.load': {
+          const { stateId, contextId = 'default' } = args as any;
+          
+          const existingCtx = await browserManager.getContext(contextId);
+          if (existingCtx) {
+            await browserManager.closeContext(contextId);
+          }
+          
+          const browser = await browserManager.ensureBrowser();
+          const path = getSessionPath(stateId);
+          
+          const context = await browser.newContext({
+            viewport: { width: 1280, height: 720 },
+            storageState: path
+          });
+          
+          const page = await context.newPage();
+          
+          const ctx = { context, page };
+          (browserManager as any).contexts.set(contextId, ctx);
+          
+          result = {
+            ok: true
+          };
+          break;
+        }
+        
+        case 'browser.reset': {
+          const { contextId = 'default' } = args as any;
+          
+          await browserManager.closeContext(contextId);
+          
+          result = {
+            ok: true,
+            message: `Context ${contextId} closed and reset`
+          };
+          break;
+        }
+        
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ error: error.message })
+          }
+        ],
+        isError: true
+      };
+    }
+  });
+
+  return server;
+}
 
 async function extractNodeInfo(el: ElementHandle, id: string, contextId: string): Promise<UINode> {
   const box = await el.boundingBox();
@@ -343,20 +443,53 @@ async function extractNodeInfo(el: ElementHandle, id: string, contextId: string)
   };
 }
 
+const mcpServer = createMCPServer();
+const fastify = Fastify({ logger: false });
+
+await fastify.register(cors, {
+  origin: '*'
+});
+
+fastify.all('/mcp', async (request, reply) => {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true
+  });
+
+  await mcpServer.connect(transport);
+  
+  reply.hijack();
+  await transport.handleRequest(request.raw, reply.raw, request.body);
+});
+
+fastify.get('/health', async (request, reply) => {
+  reply.send({
+    ok: true,
+    contexts: browserManager.getContextCount(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 process.on('SIGINT', async () => {
   console.log('\nShutting down MCP-Web server...');
   await browserManager.closeAll();
+  await fastify.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down MCP-Web server...');
   await browserManager.closeAll();
+  await fastify.close();
   process.exit(0);
 });
 
-app.listen(PORT, () => {
+try {
+  await fastify.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`MCP-Web server listening on http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
-});
-
+  console.log(`MCP endpoint: http://localhost:${PORT}/mcp`);
+} catch (err) {
+  fastify.log.error(err);
+  process.exit(1);
+}

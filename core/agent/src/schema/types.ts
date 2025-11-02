@@ -23,9 +23,11 @@ export interface Context {
 }
 
 export interface Precondition {
-  mcp: string;
-  params: Record<string, any>;
+  instruction?: string;
+  mcp?: string;
+  params?: Record<string, any>;
   store_as?: string;
+  as?: string;
 }
 
 export interface Constraints {
@@ -53,14 +55,13 @@ export interface Observation {
 }
 
 export interface Action {
-  type: 'ui.act.click' | 'ui.act.type' | 'ui.navigate';
-  params: Record<string, any>;
+  type: 'ui.act.click' | 'ui.act.type' | 'ui.navigate' | 'goal.complete';
+  params?: Record<string, any>;
 }
 
 export interface ActionPlan {
   reasoning: string;
   action: Action;
-  goalMet?: boolean;
 }
 
 export interface StepResult {

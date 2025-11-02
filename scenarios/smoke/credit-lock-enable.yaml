@@ -9,11 +9,7 @@ context:
   start_url: "http://localhost:5173/dashboard"
 
 preconditions:
-  - mcp: "data.user.create"
-    params:
-      plan: "plus"
-      requires2FA: false
-    store_as: "testUser"
+  - instruction: "Create a test user with a plus plan"
 
 constraints:
   max_steps: 15

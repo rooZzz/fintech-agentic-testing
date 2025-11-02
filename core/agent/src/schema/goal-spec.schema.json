@@ -87,21 +87,38 @@
       "description": "Actions to run before starting the scenario",
       "items": {
         "type": "object",
-        "required": ["mcp", "params"],
-        "properties": {
-          "mcp": {
-            "type": "string",
-            "description": "MCP endpoint to call"
+        "oneOf": [
+          {
+            "required": ["instruction"],
+            "properties": {
+              "instruction": {
+                "type": "string",
+                "description": "Natural language instruction for precondition setup"
+              },
+              "as": {
+                "type": "string",
+                "description": "Optional variable name to store the result"
+              }
+            }
           },
-          "params": {
-            "type": "object",
-            "description": "Parameters for the MCP call"
-          },
-          "store_as": {
-            "type": "string",
-            "description": "Variable name to store the result"
+          {
+            "required": ["mcp", "params"],
+            "properties": {
+              "mcp": {
+                "type": "string",
+                "description": "MCP endpoint to call (legacy format)"
+              },
+              "params": {
+                "type": "object",
+                "description": "Parameters for the MCP call"
+              },
+              "store_as": {
+                "type": "string",
+                "description": "Variable name to store the result"
+              }
+            }
           }
-        }
+        ]
       }
     },
     "constraints": {

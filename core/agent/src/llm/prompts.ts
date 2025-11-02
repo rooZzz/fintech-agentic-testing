@@ -18,7 +18,7 @@ When you reach your PRIMARY GOAL:
 - Verify the UI comprehensively
 - If data.* tools exist for this workflow, verify backend state
 - Confirm correctness (compare what's shown vs what's expected)
-- Set goalMet: true
+- Use the goal.complete action to declare success
 
 For intermediate steps (like login), progress efficiently toward the goal.
 
@@ -38,6 +38,8 @@ To achieve this goal, navigate to the target state and verify as thoroughly as p
 === AVAILABLE OPERATIONS ===
 
 ${availableTools}
+
+- goal.complete: INVOKE THIS when you believe the goal has been met. Use this action to declare success.
 
 Use data.* operations to verify backend state when you reach your PRIMARY GOAL (if available).
 If no relevant data.* tools exist for your workflow, focus on thorough UI verification.
@@ -69,15 +71,15 @@ Next: Progress toward primary goal
 
 PHASE 3 - PRIMARY GOAL REACHED:
 Signs: You've reached the target page/state for your PRIMARY GOAL
-Examples: Credit report page (for "view credit report"), Loan confirmation page (for "apply for loan")
+Examples: Credit report page (for "view credit report"), Loan confirmation page (for "apply for loan"), Toggle in desired state
 Your task: VERIFY AND DECLARE SUCCESS
   1. Verify UI shows correct information
   2. If appropriate data.* tools are available, verify backend
-  3. Set goalMet: true in your response
+  3. Use goal.complete action to declare success
   4. Done!
 
 Note: If no data.* tools exist for this workflow, verifying UI correctness is sufficient.
-DON'T verify, then navigate away, then verify again. Verify ONCE and set goalMet: true.
+DON'T verify, then navigate away, then verify again. Verify ONCE and call goal.complete.
 
 === DECISION FRAMEWORK ===
 
@@ -97,11 +99,17 @@ At each step, think through this sequence:
    → Submit when all required fields are filled
    → DON'T fill fields that already have values!
    
-   For TOGGLES/SWITCHES:
-   → Switches show their state with checked=true or checked=false
-   → To enable: Click ONLY if checked=false
-   → To disable: Click ONLY if checked=true
-   → Don't click repeatedly! Check the state first.
+  For TOGGLES/SWITCHES:
+  → Switches show their state with checked=true or checked=false
+  → checked=true means the feature is ENABLED/ON (active)
+  → checked=false means the feature is DISABLED/OFF (inactive)
+  → To ENABLE a feature: Click ONLY if currently checked=false
+  → To DISABLE a feature: Click ONLY if currently checked=true
+  → After clicking, observe if the UI changed to the desired state
+  → If YES and success conditions require backend verification, call data.* tool first
+  → If YES and no backend verification needed, call goal.complete
+  → If NO, click again or report the bug
+  → Don't click repeatedly without checking state!
    
    If NAVIGATION/INTERMEDIATE PHASE:
    → Optionally: Quick verification (e.g., data.user.get after login)
@@ -109,40 +117,34 @@ At each step, think through this sequence:
    → Don't overthink intermediate steps
    
    If PRIMARY GOAL REACHED:
-   → Verify comprehensively AND declare success:
+  → Verify comprehensively AND declare success:
    
-     a) Observe UI: What information is displayed?
+    a) Observe UI: What information is displayed?
+    
+    b) Verify backend IF tools are available:
+       - Check AVAILABLE OPERATIONS section for relevant data.* tools
+       - Credit report goal: data.user.get (if available)
+       - Loan application goal: data.loan.get (if available)
+       - If no relevant data.* tools exist: Skip backend verification
+    
+    c) Call goal.complete action
      
-     b) Verify backend IF tools are available:
-        - Check AVAILABLE OPERATIONS section for relevant data.* tools
-        - Credit report goal: data.user.get (if available)
-        - Loan application goal: data.loan.get (if available)
-        - If no relevant data.* tools exist: Skip backend verification
-     
-     c) In THE SAME RESPONSE:
-        Set "goalMet": true
-     
-   Example WITH backend tools:
-   {
-     "reasoning": "On credit report page. data.user.get available - verifying backend. Goal complete.",
-     "action": {"type": "data.user.get", "params": {"email": "test@example.com"}},
-     "goalMet": true
-   }
+   Example WITH backend tools (two-turn):
+   Turn 1: {"reasoning": "On credit report page. Verifying backend.", "action": {"type": "data.user.get", "params": {"email": "test@example.com"}}}
+   Turn 2: {"reasoning": "Backend verified. UI and data match. Goal complete.", "action": {"type": "goal.complete"}}
    
-   Example WITHOUT specific backend tools (can use general tools):
-   {
-     "reasoning": "Reached dashboard page. data.user.get available for verification. Goal complete.",
-     "action": {"type": "data.user.get", "params": {"email": "test@example.com"}},
-     "goalMet": true
-   }
+   Example WITHOUT backend verification:
+   {"reasoning": "Reached dashboard page. UI verified. Goal complete.", "action": {"type": "goal.complete"}}
    
 3. EVALUATE SUCCESS
    Ask yourself: "Am I at the target state for my PRIMARY GOAL?"
    - Credit report goal: Am I viewing the credit report page?
    - Loan application goal: Am I on the loan confirmation page?
    - Dashboard goal: Am I on the dashboard?
+   - Toggle goal: Is the toggle in the desired state (checked=true for enable, checked=false for disable)?
    
-   If YES → Call data.* to verify AND set "goalMet": true in same response
+   If YES and backend verification needed → Call data.* tool, then goal.complete
+   If YES and no backend verification → Call goal.complete immediately
    If NO → Navigate toward goal
 
 === ELEMENT INTERACTION RULES ===
@@ -170,11 +172,11 @@ HOW TO VERIFY:
 2. Look at AVAILABLE OPERATIONS - are there data.* tools for this workflow?
 3. If YES: Call appropriate data.* tool to verify backend
 4. If NO: Verify UI thoroughly and proceed
-5. Set goalMet: true in THE SAME RESPONSE
+5. Call goal.complete action
 6. Done!
 
 IMPORTANT: Use backend tools when available, but don't fail if they don't exist.
-Once you're at your goal: Verify (UI + backend if tools exist) → Set goalMet: true → Stop!
+Once you're at your goal: Verify (UI + backend if tools exist) → Call goal.complete → Stop!
 
 NOT verification points:
 - Before filling forms (no data exists yet)
@@ -199,47 +201,47 @@ DO:
 - When you reach the goal target state: STOP and verify comprehensively
 - Check what elements exist on the current page before clicking
 - Use test user credentials from context
-- Set goalMet: true when goal is verified
+- Call goal.complete when goal is verified
 
 === DECLARING SUCCESS ===
 
-IMPORTANT: Verification is a TWO-STEP process:
+IMPORTANT: Verification is a TWO-STEP process when backend verification is required:
 
-Step 1: Call verification (without goalMet)
+Step 1: Call verification (DO NOT call goal.complete yet)
 {
   "reasoning": "On confirmation page. Need to verify backend before declaring success.",
-  "action": {"type": "data.loan.get", "params": {"id": "abc123"}},
-  "goalMet": false
+  "action": {"type": "data.loan.get", "params": {"id": "abc123"}}
 }
 
 Step 2: Next turn, evaluate results and decide
 {
   "reasoning": "Verification returned valid loan data matching UI. All layers verified. Goal complete.",
-  "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}},
-  "goalMet": true
+  "action": {"type": "goal.complete"}
 }
 
 OR if verification failed:
 {
   "reasoning": "BUG DETECTED: UI shows loan confirmed but data.loan.get returned null. Backend did not save the loan.",
-  "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}},
-  "goalMet": false
+  "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}}
 }
 
-Never declare goalMet: true in the same turn as calling verification. Wait for results.
+Never call goal.complete in the same turn as calling verification. Wait for results.
 
 CORRECT - TWO-TURN verification:
-Turn 1: {"reasoning": "Reached credit report page. Verifying backend.", "action": {"type": "data.user.get", "params": {"email": "test@example.com"}}, "goalMet": false}
-Turn 2: {"reasoning": "Verification successful. Backend matches UI. Goal complete.", "action": {"type": "ui.act.click", "params": {"testId": "nav-dashboard"}}, "goalMet": true}
+Turn 1: {"reasoning": "Reached credit report page. Verifying backend.", "action": {"type": "data.user.get", "params": {"email": "test@example.com"}}}
+Turn 2: {"reasoning": "Verification successful. Backend matches UI. Goal complete.", "action": {"type": "goal.complete"}}
+
+CORRECT - TOGGLE verification:
+Turn 1: {"reasoning": "Credit lock toggle enabled (checked=true). Verifying backend state.", "action": {"type": "data.user.getCreditLock", "params": {"userId": "abc-123"}}}
+Turn 2: {"reasoning": "Backend confirmed creditLocked=true. UI and backend match. Goal complete.", "action": {"type": "goal.complete"}}
 
 WRONG - ONE-TURN verification (blind success):
 {
   "reasoning": "Verifying credit report data",
-  "action": {"type": "data.user.get", "params": {"email": "test@example.com"}},
-  "goalMet": true  ← WRONG! You haven't seen the result yet!
+  "action": {"type": "goal.complete"}  ← WRONG! You haven't seen the verification result yet!
 }
 
-CRITICAL RULE: Call verification → Wait for result → Then decide goalMet based on what you see.
+CRITICAL RULE: Call verification → Wait for result → Then call goal.complete based on what you see.
 
 === RESPONSE FORMAT ===
 
@@ -248,19 +250,19 @@ Respond ONLY with valid JSON. ALL fields are required:
 {
   "reasoning": "brief explanation of action and state",
   "action": {
-    "type": "ui.act.type" or "ui.act.click" or "data.*",
+    "type": "ui.act.type" or "ui.act.click" or "ui.navigate" or "data.*" or "goal.complete",
     "params": {...}
-  },
-  "goalMet": true or false (optional, defaults to false)
+  }
 }
 
-CRITICAL: Always include an "action" field, even when declaring goalMet: true.
+CRITICAL: The "action" field is always required. Params are optional for goal.complete.
 
 Examples:
 - Filling field: {"reasoning": "...", "action": {"type": "ui.act.type", "params": {"testId": "email-input", "text": "user@example.com"}}}
 - Clicking button: {"reasoning": "...", "action": {"type": "ui.act.click", "params": {"testId": "submit-button"}}}
-- Goal complete WITH verification: {"reasoning": "Verified loan in backend", "action": {"type": "data.loan.get", "params": {"id": "123"}}, "goalMet": true}
-- Goal complete (can include any action): {"reasoning": "Dashboard verified", "action": {"type": "data.user.get", "params": {"email": "test@example.com"}}, "goalMet": true}`;
+- Verification call: {"reasoning": "Verifying backend", "action": {"type": "data.user.get", "params": {"email": "test@example.com"}}}
+- Goal complete: {"reasoning": "All verification complete", "action": {"type": "goal.complete"}}
+`;
 }
 
 function formatCondition(condition: SuccessCondition): string {
@@ -272,6 +274,9 @@ function formatCondition(condition: SuccessCondition): string {
   }
   if ('heading_text' in condition) {
     return `- Heading text equals: "${condition.heading_text}"`;
+  }
+  if ('comprehensive' in condition) {
+    return `- Comprehensive: ${condition.comprehensive}`;
   }
   return '- Unknown condition';
 }
@@ -305,16 +310,26 @@ export function buildObservationPrompt(
     });
 
   let contextInfo = '';
-  if (variables.testUser) {
-    const user = variables.testUser;
-    contextInfo = `\nTest User Context:
-- Email: ${user.email}
-- Password: ${user.password}
-${user.creditScore ? `- Credit Score: ${user.creditScore}` : ''}
-${user.userId ? `- User ID: ${user.userId}` : ''}
-
-Use these credentials to fill forms (email/password inputs).
-After completing actions, verify displayed data matches these values.`;
+  const hasContext = Object.keys(variables).some(k => k !== '_contextId');
+  
+  if (hasContext) {
+    contextInfo += '\n=== Test Setup Context ===\n';
+    
+    for (const [key, value] of Object.entries(variables)) {
+      if (key === '_contextId') continue;
+      
+      const meta = value?._meta;
+      const description = meta?.description || 'Test data';
+      const data = meta ? { ...value } : value;
+      if (data._meta) delete data._meta;
+      
+      contextInfo += `\n${key}: ${description}\n`;
+      const jsonStr = JSON.stringify(data, null, 2);
+      const indented = jsonStr.split('\n').map(l => '  ' + l).join('\n');
+      contextInfo += `${indented}\n`;
+    }
+    
+    contextInfo += '\nUse this data appropriately for forms, IDs, and verification.';
   }
 
   let recentActionsText = '';
@@ -379,8 +394,8 @@ You called: ${lastAction.action.type}
 Result: ${JSON.stringify(lastAction.result, null, 2)}
 
 CRITICAL: Compare this backend data to what's displayed in the UI.
-- If they match and you've reached your PRIMARY GOAL → set goalMet: true
-- If they DON'T match → there's a BUG. Report the discrepancy in reasoning and do NOT set goalMet.
+- If they match and you've reached your PRIMARY GOAL → call goal.complete
+- If they DON'T match → there's a BUG. Report the discrepancy in reasoning and do NOT call goal.complete.
 - If result is null/empty but UI shows data → BACKEND BUG, fail the test.
 
 Make your decision based on this verification data.`;
