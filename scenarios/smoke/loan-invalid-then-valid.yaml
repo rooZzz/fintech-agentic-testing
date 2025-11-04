@@ -1,0 +1,19 @@
+version: "0.1"
+id: loan-invalid-then-valid
+goal:
+  description: "Apply for a loan with an invalid amount, see the error, then correct it and succeed"
+  success: "Validation error displayed for amount over $500,000, then loan submitted successfully with valid amount"
+  hints:
+    - "CRITICAL: Form validation occurs at submission - you MUST populate all fields before clicking submit"
+
+context:
+  start_url: "http://localhost:5173/dashboard"
+
+preconditions:
+  - instruction: "Create a test user with a free plan"
+  - instruction: "Seed 3 loan offers for the user, make one for 500k"
+
+constraints:
+  max_steps: 35
+  max_cost_usd: 0.90
+

@@ -1,13 +1,18 @@
 import { GoalSpec, Observation } from '../schema/types.js';
 
 export function buildSystemPrompt(spec: GoalSpec, availableTools: string): string {
+  let hintsSection = '';
+  if (spec.goal.hints && spec.goal.hints.length > 0) {
+    hintsSection = `\n\n=== HINTS ===\n${spec.goal.hints.map(h => `- ${h}`).join('\n')}`;
+  }
+
   return `You are a testing agent for end-to-end web scenarios.
 
 === YOUR GOAL ===
 ${spec.goal.description}
 
 === SUCCESS CONDITIONS ===
-${spec.goal.success}
+${spec.goal.success}${hintsSection}
 
 === CONSTRAINTS ===
 - Max steps: ${spec.constraints.max_steps}
@@ -29,7 +34,6 @@ ${availableTools}
 4) Respond only with JSON: {"reasoning": "...", "action": {"type": "...", "params": {...}}}
 
 IMPORTANT: Verify success via persistent UI state (forms, text displays, data tables) or backend validation (data.* tools), not temporary feedback messages.
-
 NOTE: You can validate multiple sources across multiple turns before calling goal.complete`;
 }
 
@@ -40,7 +44,7 @@ export function buildObservationPrompt(
   recentActions?: Array<{ step: number; action: any; reasoning: string; result?: any }>
 ): string {
   const interactiveElements = observation.nodes
-    .filter((node) => node.visible && node.enabled)
+    .filter((node) => node.visible)
     .slice(0, 100)
     .map((node) => {
       const parts: string[] = [`- ${node.role}`];
@@ -50,7 +54,7 @@ export function buildObservationPrompt(
       if (node.placeholder) parts.push(`placeholder="${node.placeholder}"`);
       if (node.context) parts.push(`in="${node.context}"`);
       if (node.href) parts.push(`href="${node.href}"`);
-      if (node.value !== undefined) parts.push(`value="${node.value}"`);
+      if (node.value !== undefined && node.value !== '') parts.push(`value="${node.value}"`);
       if (node.ariaChecked !== undefined) parts.push(`checked=${node.ariaChecked}`);
       if (node.required) parts.push(`required`);
       if (node.disabled) parts.push(`disabled`);
@@ -73,10 +77,24 @@ export function buildObservationPrompt(
 
   let recentActionsText = '';
   if (recentActions && recentActions.length > 0) {
-    recentActionsText = `\n=== RECENT ACTIONS (last ${recentActions.length} steps) ===\n`;
+    recentActionsText = `\n=== RECENT ACTIONS (context only - elements may no longer exist) ===\n`;
     recentActions.forEach(a => {
-      const params = JSON.stringify(a.action.params || {});
-      recentActionsText += `Step ${a.step}: ${a.action.type} ${params}\n`;
+      // Describe action in natural language without exposing selectors
+      let actionDesc = a.action.type;
+      if (a.action.type.startsWith('ui.act.')) {
+        const actionName = a.action.type.replace('ui.act.', '');
+        if (actionName === 'click') {
+          actionDesc = 'Clicked element';
+        } else if (actionName === 'type') {
+          actionDesc = 'Typed into field';
+        } else if (actionName === 'interact') {
+          actionDesc = 'Interacted with element';
+        }
+      } else if (a.action.type === 'ui.navigate') {
+        actionDesc = 'Navigated';
+      }
+      
+      recentActionsText += `Step ${a.step}: ${actionDesc}\n`;
       recentActionsText += `  Reasoning: ${a.reasoning}\n`;
       if (a.result) {
         recentActionsText += `  Result: ${JSON.stringify(a.result)}\n`;

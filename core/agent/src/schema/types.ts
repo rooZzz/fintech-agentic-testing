@@ -10,6 +10,7 @@ export interface GoalSpec {
 export interface Goal {
   description: string;
   success: string;
+  hints?: string[];
 }
 
 export interface Context {

@@ -1,0 +1,17 @@
+version: "0.1"
+id: update-name-and-loan
+goal:
+  description: "Update your profile name to 'Jane Smith' and then apply for a loan"
+  success: "Profile name is 'Jane Smith' and a loan application has been submitted"
+
+context:
+  start_url: "http://localhost:5173/dashboard"
+
+preconditions:
+  - instruction: "Create a test user with a plus plan and name 'John Doe'"
+  - instruction: "Seed 3 loan offers for the user"
+
+constraints:
+  max_steps: 40
+  max_cost_usd: 1.00
+
