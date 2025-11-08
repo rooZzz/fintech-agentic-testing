@@ -15,7 +15,7 @@ class BrowserManager {
         headless: false,
         args: [
           '--disable-blink-features=AutomationControlled',
-          '--window-size=780,844',
+          '--window-size=320,844',
           '--window-position=0,0',
         ]
       });
@@ -29,7 +29,7 @@ class BrowserManager {
     if (!ctx) {
       const browser = await this.ensureBrowser();
       const context = await browser.newContext({
-        viewport: { width: 780, height: 844 },
+        viewport: { width: 600, height: 844 },
         isMobile: false,
         hasTouch: false,
         deviceScaleFactor: 2,

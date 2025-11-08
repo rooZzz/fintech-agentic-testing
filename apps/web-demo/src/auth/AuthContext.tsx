@@ -3,6 +3,7 @@ import type { AuthSession } from '@/types/auth';
 
 interface AuthContextValue {
   session: AuthSession | null;
+  user: AuthSession['user'] | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;

@@ -94,10 +94,40 @@ export interface ListLoansResponse {
   loans: LoanProduct[];
 }
 
+export interface Tradeline {
+  id: number;
+  creditor: string;
+  accountNumber: string;
+  type: 'Revolving' | 'Installment';
+  balance: number;
+  limit: number;
+  status: 'Open' | 'Closed';
+  paymentHistory: string;
+}
+
 export interface CreditReport {
   userId: string;
   creditScore: number;
   scoreRating: 'POOR' | 'FAIR' | 'GOOD' | 'VERY GOOD' | 'EXCELLENT';
   lastUpdated: string;
+  tradelines: Tradeline[];
+}
+
+export type LoanApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LoanApplication {
+  applicationId: string;
+  userId: string;
+  loanProductId: string;
+  loanType: LoanType;
+  lenderName: string;
+  requestedAmount: number;
+  requestedTerm: number;
+  apr: number;
+  monthlyPayment: number;
+  totalInterest: number;
+  status: LoanApplicationStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 

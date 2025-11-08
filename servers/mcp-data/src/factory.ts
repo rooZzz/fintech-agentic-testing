@@ -1,8 +1,10 @@
 import { randomUUID } from 'crypto';
-import type { TestUser, LoanProduct, LoanType, CreditReport } from './types.js';
+import type { TestUser, LoanProduct, LoanType, CreditReport, LoanApplication } from './types.js';
 
 const users: Map<string, TestUser> = new Map();
 const loans: Map<string, LoanProduct> = new Map();
+const applications: Map<string, LoanApplication> = new Map();
+const userApplications: Map<string, string[]> = new Map();
 
 export function createUser(params: {
   plan: 'free' | 'plus' | 'premium';
@@ -264,11 +266,134 @@ export function getCreditReport(userId: string): CreditReport {
   else if (creditScore < 800) scoreRating = 'VERY GOOD';
   else scoreRating = 'EXCELLENT';
   
+  const tradelines = [
+    {
+      id: 1,
+      creditor: 'Barclaycard Platinum',
+      accountNumber: '****1234',
+      type: 'Revolving' as const,
+      balance: 2450,
+      limit: 10000,
+      status: 'Open' as const,
+      paymentHistory: 'On Time',
+    },
+    {
+      id: 2,
+      creditor: 'Santander Car Loan',
+      accountNumber: '****5678',
+      type: 'Installment' as const,
+      balance: 18500,
+      limit: 25000,
+      status: 'Open' as const,
+      paymentHistory: 'On Time',
+    },
+    {
+      id: 3,
+      creditor: 'Student Loan - SLC',
+      accountNumber: '****9012',
+      type: 'Installment' as const,
+      balance: 32000,
+      limit: 35000,
+      status: 'Open' as const,
+      paymentHistory: 'On Time',
+    },
+  ];
+  
   return {
     userId,
     creditScore,
     scoreRating,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
+    tradelines
   };
+}
+
+export function createLoanApplication(params: {
+  userId: string;
+  loanProductId: string;
+  requestedAmount: number;
+  requestedTerm: number;
+}): LoanApplication {
+  const user = getUserById(params.userId);
+  if (!user) {
+    throw new Error(`User not found: ${params.userId}`);
+  }
+
+  const loanProduct = getLoanById(params.loanProductId);
+  if (!loanProduct) {
+    throw new Error(`Loan product not found: ${params.loanProductId}`);
+  }
+
+  if (params.requestedAmount < loanProduct.minAmount || params.requestedAmount > loanProduct.maxAmount) {
+    throw new Error(`Requested amount $${params.requestedAmount} is outside the allowed range ($${loanProduct.minAmount} - $${loanProduct.maxAmount})`);
+  }
+
+  if (params.requestedTerm < loanProduct.minTerm || params.requestedTerm > loanProduct.maxTerm) {
+    throw new Error(`Requested term ${params.requestedTerm} years is outside the allowed range (${loanProduct.minTerm} - ${loanProduct.maxTerm} years)`);
+  }
+
+  const monthlyPayment = calculateMonthlyPayment(params.requestedAmount, loanProduct.apr, params.requestedTerm);
+  const totalInterest = calculateTotalInterest(params.requestedAmount, monthlyPayment, params.requestedTerm);
+
+  const applicationId = randomUUID();
+  const now = new Date().toISOString();
+
+  const application: LoanApplication = {
+    applicationId,
+    userId: params.userId,
+    loanProductId: params.loanProductId,
+    loanType: loanProduct.loanType,
+    lenderName: loanProduct.lenderName,
+    requestedAmount: params.requestedAmount,
+    requestedTerm: params.requestedTerm,
+    apr: loanProduct.apr,
+    monthlyPayment,
+    totalInterest,
+    status: 'pending',
+    createdAt: now,
+    updatedAt: now
+  };
+
+  applications.set(applicationId, application);
+  
+  const userApps = userApplications.get(params.userId) || [];
+  userApps.push(applicationId);
+  userApplications.set(params.userId, userApps);
+
+  return application;
+}
+
+export function getLoanApplicationById(applicationId: string): LoanApplication | null {
+  return applications.get(applicationId) || null;
+}
+
+export function getLatestLoanApplicationForUser(userId: string): LoanApplication | null {
+  const userApps = userApplications.get(userId);
+  if (!userApps || userApps.length === 0) {
+    return null;
+  }
+
+  const latestAppId = userApps[userApps.length - 1];
+  return applications.get(latestAppId) || null;
+}
+
+export function listLoanApplicationsForUser(userId: string): LoanApplication[] {
+  const userApps = userApplications.get(userId);
+  if (!userApps || userApps.length === 0) {
+    return [];
+  }
+
+  return userApps
+    .map(appId => applications.get(appId))
+    .filter((app): app is LoanApplication => app !== undefined);
+}
+
+export function resetAllLoanApplications(): void {
+  applications.clear();
+  userApplications.clear();
+}
+
+export function getLoanApplicationCount(): number {
+  return applications.size;
 }
 

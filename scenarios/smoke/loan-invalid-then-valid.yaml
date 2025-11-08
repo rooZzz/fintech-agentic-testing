@@ -1,10 +1,8 @@
 version: "0.1"
 id: loan-invalid-then-valid
 goal:
-  description: "Apply for a loan with an invalid amount, see the error, then correct it and succeed"
-  success: "Validation error displayed for amount over $500,000, then loan submitted successfully with valid amount"
-  hints:
-    - "CRITICAL: Form validation occurs at submission - you MUST populate all fields before clicking submit"
+  description: "Apply for a loan with an invalid amount of 600k, see the validation error when you attempt to submit completed form, then correct the error and successfully apply for a loan"
+  success: "Validation error displayed, then loan submitted successfully with valid amount"
 
 context:
   start_url: "http://localhost:5173/dashboard"

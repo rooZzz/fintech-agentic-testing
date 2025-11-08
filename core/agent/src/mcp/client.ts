@@ -1,4 +1,4 @@
-import { Observation, UINode } from '../schema/types.js';
+import { Observation } from '../schema/types.js';
 
 const MCP_WEB_URL = process.env.MCP_WEB_URL || 'http://localhost:7001';
 const MCP_DATA_URL = process.env.MCP_DATA_URL || 'http://localhost:7002';
@@ -163,29 +163,19 @@ export const mcpWeb = {
     return callTool(MCP_WEB_URL, 'browser.reset', params);
   },
 
-  async observe(contextId?: string): Promise<Observation> {
-    const response = await callTool(MCP_WEB_URL, 'ui.observe', contextId ? { contextId } : {});
+  async observe(params: {
+    contextId?: string;
+    goal?: string;
+    lastAction?: string;
+    expectingValidation?: boolean;
+  } = {}): Promise<Observation> {
+    const response = await callTool(MCP_WEB_URL, 'ui.observe', params);
     
     return {
       url: response.url,
       title: response.title,
-      nodes: (response.nodes || []).map((node: any) => ({
-        id: node.id || '',
-        role: node.role || '',
-        name: node.name || '',
-        bounds: node.bounds || { x: 0, y: 0, w: 0, h: 0 },
-        enabled: node.enabled !== false,
-        visible: node.visible !== false,
-        testId: node.testId,
-        href: node.href,
-        value: node.value,
-        ariaChecked: node.ariaChecked,
-        label: node.label,
-        placeholder: node.placeholder,
-        context: node.context,
-        required: node.required,
-        disabled: node.disabled,
-      })),
+      sdom: response.sdom || { interactive: [], content: [], feedback: [], data: [] },
+      sdelta: response.sdelta || null
     };
   },
 
@@ -196,7 +186,7 @@ export const mcpWeb = {
     selector?: string;
     testId?: string;
     contextId?: string;
-  }): Promise<{ nodes: UINode[] }> {
+  }): Promise<{ nodes: any[] }> {
     return callTool(MCP_WEB_URL, 'ui.query', params);
   },
 

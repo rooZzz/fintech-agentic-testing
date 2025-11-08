@@ -20,7 +20,13 @@ import {
   toggleCreditLock,
   getCreditLockStatus,
   getCreditReport,
-  updateUserName
+  updateUserName,
+  createLoanApplication,
+  getLoanApplicationById,
+  getLatestLoanApplicationForUser,
+  listLoanApplicationsForUser,
+  resetAllLoanApplications,
+  getLoanApplicationCount
 } from './factory.js';
 import { generateToken, validateCredentials } from './auth.js';
 
@@ -107,7 +113,7 @@ function createMCPServer() {
         },
         {
           name: 'data.loan.get',
-          description: 'Get specific loan details for verification',
+          description: '⚠️ FOR LOAN OFFERS ONLY (NOT APPLICATIONS). Get loan product/offer details from lenders by product ID. This retrieves pre-seeded loan OFFERS available for browsing (NOT user loan applications). If you need to verify a loan APPLICATION was created, use data.loanApplication.getLatest instead. Only use this tool when: 1) Verifying loan offers displayed in search results, 2) You have a specific loan product ID from the offers list.',
           annotations: {
             readOnlyHint: true,
             destructiveHint: false
@@ -115,14 +121,14 @@ function createMCPServer() {
           inputSchema: {
             type: 'object',
             properties: {
-              id: { type: 'string', description: 'Loan ID' }
+              id: { type: 'string', description: 'Loan product/offer ID (UUID from seeded loan offers - NOT application ID)' }
             },
             required: ['id']
           }
         },
         {
           name: 'data.loan.seed',
-          description: 'Seed loan offers (used in preconditions)',
+          description: 'Seed loan product OFFERS from various lenders (used in preconditions). This creates the catalog of loan offers/products that users can browse and search through. These are NOT loan applications - they are available offers from lenders.',
           annotations: {
             readOnlyHint: false,
             destructiveHint: false
@@ -130,13 +136,13 @@ function createMCPServer() {
           inputSchema: {
             type: 'object',
             properties: {
-              count: { type: 'number', description: 'Number of loans to seed', default: 7 }
+              count: { type: 'number', description: 'Number of loan product offers to seed', default: 7 }
             }
           }
         },
         {
           name: 'data.loan.reset',
-          description: 'Reset loan data',
+          description: 'Reset loan product OFFERS data (clears the catalog of available loan offers from lenders). Does NOT affect loan applications.',
           annotations: {
             readOnlyHint: false,
             destructiveHint: true,
@@ -206,6 +212,54 @@ function createMCPServer() {
               userId: { type: 'string', description: 'User ID' }
             },
             required: ['userId']
+          }
+        },
+        {
+          name: 'data.loanApplication.create',
+          description: '⚠️ FOR LOAN APPLICATIONS. Create a loan application when user accepts a loan offer. This is automatically called by the web app when a user submits an application. DO NOT call this manually during testing - the web app handles it.',
+          annotations: {
+            readOnlyHint: false,
+            destructiveHint: false
+          },
+          inputSchema: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string', description: 'User ID' },
+              loanProductId: { type: 'string', description: 'Loan product/offer ID that user is applying for' },
+              requestedAmount: { type: 'number', description: 'Requested loan amount' },
+              requestedTerm: { type: 'number', description: 'Requested loan term in years' }
+            },
+            required: ['userId', 'loanProductId', 'requestedAmount', 'requestedTerm']
+          }
+        },
+        {
+          name: 'data.loanApplication.getLatest',
+          description: '✅ USE THIS TO VERIFY LOAN APPLICATIONS. Get the most recent loan application for a user to verify that a loan application was successfully submitted/created. NO ID REQUIRED - just pass userId. Returns full application details including: lenderName, loanType, requestedAmount, requestedTerm, apr, monthlyPayment, totalInterest, status, applicationId, createdAt. Use this when the goal is to verify a loan application was submitted.',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
+          inputSchema: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string', description: 'User ID - that\'s all you need!' }
+            },
+            required: ['userId']
+          }
+        },
+        {
+          name: 'data.loanApplication.get',
+          description: 'Get a specific loan application by ID. Returns full application details including: lenderName, loanType, requestedAmount, requestedTerm, apr, monthlyPayment, totalInterest, status, applicationId, userId, createdAt.',
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false
+          },
+          inputSchema: {
+            type: 'object',
+            properties: {
+              applicationId: { type: 'string', description: 'Loan application ID' }
+            },
+            required: ['applicationId']
           }
         }
       ]
@@ -365,6 +419,57 @@ function createMCPServer() {
           }
           const report = getCreditReport(userId);
           result = report;
+          break;
+        }
+        
+        case 'data.loanApplication.create': {
+          const { userId, loanProductId, requestedAmount, requestedTerm } = args as any;
+          
+          if (!userId) {
+            throw new Error('User ID is required');
+          }
+          if (!loanProductId) {
+            throw new Error('Loan product ID is required');
+          }
+          if (!requestedAmount) {
+            throw new Error('Requested amount is required');
+          }
+          if (!requestedTerm) {
+            throw new Error('Requested term is required');
+          }
+          
+          const application = createLoanApplication({
+            userId,
+            loanProductId,
+            requestedAmount,
+            requestedTerm
+          });
+          
+          result = { application };
+          break;
+        }
+        
+        case 'data.loanApplication.getLatest': {
+          const { userId } = args as any;
+          
+          if (!userId) {
+            throw new Error('User ID is required');
+          }
+          
+          const application = getLatestLoanApplicationForUser(userId);
+          result = { application };
+          break;
+        }
+        
+        case 'data.loanApplication.get': {
+          const { applicationId } = args as any;
+          
+          if (!applicationId) {
+            throw new Error('Application ID is required');
+          }
+          
+          const application = getLoanApplicationById(applicationId);
+          result = { application };
           break;
         }
         
@@ -619,6 +724,68 @@ fastify.post('/data/loan/get', async (request, reply) => {
   }
 });
 
+fastify.post('/data/loan-application/create', async (request, reply) => {
+  try {
+    const { userId, loanProductId, requestedAmount, requestedTerm } = request.body as any;
+    
+    if (!userId) {
+      return reply.status(400).send({ error: 'User ID is required.' });
+    }
+    if (!loanProductId) {
+      return reply.status(400).send({ error: 'Loan product ID is required.' });
+    }
+    if (!requestedAmount) {
+      return reply.status(400).send({ error: 'Requested amount is required.' });
+    }
+    if (!requestedTerm) {
+      return reply.status(400).send({ error: 'Requested term is required.' });
+    }
+    
+    const application = createLoanApplication({
+      userId,
+      loanProductId,
+      requestedAmount,
+      requestedTerm
+    });
+    
+    reply.send({ application });
+  } catch (error: any) {
+    reply.status(400).send({ error: error.message });
+  }
+});
+
+fastify.post('/data/loan-application/get-latest', async (request, reply) => {
+  try {
+    const { userId } = request.body as any;
+    
+    if (!userId) {
+      return reply.status(400).send({ error: 'User ID is required.' });
+    }
+    
+    const application = getLatestLoanApplicationForUser(userId);
+    
+    reply.send({ application });
+  } catch (error: any) {
+    reply.status(500).send({ error: error.message });
+  }
+});
+
+fastify.post('/data/loan-application/get', async (request, reply) => {
+  try {
+    const { applicationId } = request.body as any;
+    
+    if (!applicationId) {
+      return reply.status(400).send({ error: 'Application ID is required.' });
+    }
+    
+    const application = getLoanApplicationById(applicationId);
+    
+    reply.send({ application });
+  } catch (error: any) {
+    reply.status(500).send({ error: error.message });
+  }
+});
+
 fastify.post('/data/reset', async (request, reply) => {
   try {
     const { tenant = 'default' } = request.body as any;
@@ -639,6 +806,7 @@ fastify.get('/health', async (request, reply) => {
     ok: true, 
     users: getUserCount(),
     loans: getLoanCount(),
+    loanApplications: getLoanApplicationCount(),
     timestamp: new Date().toISOString()
   });
 });

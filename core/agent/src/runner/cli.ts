@@ -102,10 +102,6 @@ async function runSingleScenario(scenarioPath: string): Promise<{ success: boole
     const result = await runScenario(spec, outputPath);
 
     console.log('  ' + '='.repeat(76));
-    console.log(`  Status: ${result.status}`);
-    console.log(`  Steps: ${result.totalSteps}`);
-    console.log(`  Duration: ${result.duration.toFixed(2)}s`);
-    console.log(`  Cost: $${result.totalCost.toFixed(4)}`);
     console.log(`  Log: ${outputPath}`);
 
     if (result.status === 'success') {

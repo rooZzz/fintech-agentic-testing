@@ -2,10 +2,10 @@ version: "0.1"
 id: take-out-loan
 goal:
   description: "Apply for a loan"
-  success: "Loan application submitted successfully"
+  success: "Loan application submitted successfully and confirmation page displays the submitted application details"
 
 context:
-  start_url: "http://localhost:5173/dashboard"
+  start_url: "http://localhost:5173/login"
 
 preconditions:
   - instruction: "Create a test user with a plus plan"

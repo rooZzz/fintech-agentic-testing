@@ -33,38 +33,6 @@ export const CreditReport = () => {
     fetchCreditReport();
   }, [session?.user?.userId]);
 
-  const tradelines = [
-    {
-      id: 1,
-      creditor: 'Barclaycard Platinum',
-      accountNumber: '****1234',
-      type: 'Revolving',
-      balance: 2450,
-      limit: 10000,
-      status: 'Open',
-      paymentHistory: 'On Time',
-    },
-    {
-      id: 2,
-      creditor: 'Santander Car Loan',
-      accountNumber: '****5678',
-      type: 'Installment',
-      balance: 18500,
-      limit: 25000,
-      status: 'Open',
-      paymentHistory: 'On Time',
-    },
-    {
-      id: 3,
-      creditor: 'Student Loan - SLC',
-      accountNumber: '****9012',
-      type: 'Installment',
-      balance: 32000,
-      limit: 35000,
-      status: 'Open',
-      paymentHistory: 'On Time',
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -116,7 +84,7 @@ export const CreditReport = () => {
           <div className="bg-white rounded-xl shadow-md p-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Tradelines</h2>
             <div className="space-y-4">
-              {tradelines.map((tradeline) => (
+              {(creditReport?.tradelines || []).map((tradeline) => (
                 <div
                   key={tradeline.id}
                   className="border border-gray-200 rounded-lg p-6 hover:border-fintech-accent transition"

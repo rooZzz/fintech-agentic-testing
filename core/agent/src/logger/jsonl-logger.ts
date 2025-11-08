@@ -73,6 +73,76 @@ export class JSONLLogger {
     this.log({ type: 'run_end', ...data });
   }
 
+  logAgentTransition(data: {
+    from: string;
+    to: string;
+    step: number;
+    timestamp: string;
+    state?: Record<string, any>;
+  }) {
+    this.log({ type: 'agent_transition', ...data });
+  }
+
+  logValidationOutcome(data: {
+    outcomeId: string;
+    stepNumber: number;
+    layer: 'ui_only' | 'backend_only' | 'both';
+    overall: 'pass' | 'fail' | 'flaky';
+    assertions: Array<{
+      query: string;
+      passed: boolean;
+      actual: any;
+      expected: string;
+    }>;
+    probes: Array<{
+      tool: string;
+      passed: boolean;
+      response?: any;
+      expectation?: any;
+    }>;
+    timestamp: string;
+  }) {
+    this.log({ type: 'validation_outcome', ...data });
+  }
+
+  logEvidenceCitation(data: {
+    step: number;
+    evidenceIds: string[];
+    planner: string;
+    reasoning: string;
+    timestamp: string;
+  }) {
+    this.log({ type: 'evidence_citation', ...data });
+  }
+
+  logCriticDecision(data: {
+    step: number;
+    decision: 'continue' | 'retry' | 'success' | 'failure';
+    hint?: string;
+    reasoning?: string;
+    timestamp: string;
+  }) {
+    this.log({ type: 'critic_decision', ...data });
+  }
+
+  logGoalCheck(data: {
+    step: number;
+    goalMet: boolean;
+    confidence: number;
+    reasoning: string;
+    currentUrl: string | null;
+    evaluatedOutcomes: number;
+    successCriteria: string;
+    suggestedEvidence?: string[];
+    timestamp: string;
+  }) {
+    this.log({ type: 'goal_check', ...data });
+  }
+
+  async close() {
+    return Promise.resolve();
+  }
+
   private log(data: Record<string, any>) {
     const line = JSON.stringify(data) + '\n';
     appendFileSync(this.outputPath, line);

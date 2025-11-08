@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
 interface LoanProduct {
   id: string;
@@ -10,11 +11,29 @@ interface LoanProduct {
   loanType: string;
 }
 
+interface LoanApplication {
+  applicationId: string;
+  userId: string;
+  loanProductId: string;
+  loanType: string;
+  lenderName: string;
+  requestedAmount: number;
+  requestedTerm: number;
+  apr: number;
+  monthlyPayment: number;
+  totalInterest: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const LoanConfirmation = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { loanId } = useParams<{ loanId: string }>();
   const [searchParams] = useSearchParams();
   const [loan, setLoan] = useState<LoanProduct | null>(null);
+  const [application, setApplication] = useState<LoanApplication | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,10 +41,11 @@ export const LoanConfirmation = () => {
   const term = searchParams.get('term');
 
   useEffect(() => {
-    const fetchLoan = async () => {
+    const fetchLoanAndCreateApplication = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:7002/data/loan/get', {
+        
+        const loanResponse = await fetch('http://localhost:7002/data/loan/get', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -33,16 +53,38 @@ export const LoanConfirmation = () => {
           body: JSON.stringify({ id: loanId }),
         });
 
-        if (!response.ok) {
+        if (!loanResponse.ok) {
           throw new Error('Failed to fetch loan details');
         }
 
-        const data = await response.json();
-        if (!data.loan) {
+        const loanData = await loanResponse.json();
+        if (!loanData.loan) {
           throw new Error('Loan not found');
         }
 
-        setLoan(data.loan);
+        setLoan(loanData.loan);
+
+        if (user?.userId && amount && term) {
+          const appResponse = await fetch('http://localhost:7002/data/loan-application/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.userId,
+              loanProductId: loanId,
+              requestedAmount: parseFloat(amount),
+              requestedTerm: parseInt(term),
+            }),
+          });
+
+          if (!appResponse.ok) {
+            throw new Error('Failed to create loan application');
+          }
+
+          const appData = await appResponse.json();
+          setApplication(appData.application);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -51,9 +93,9 @@ export const LoanConfirmation = () => {
     };
 
     if (loanId) {
-      fetchLoan();
+      fetchLoanAndCreateApplication();
     }
-  }, [loanId]);
+  }, [loanId, user, amount, term]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -63,7 +105,7 @@ export const LoanConfirmation = () => {
     }).format(value);
   };
 
-  if (loading) {
+  if (loading || !application) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-3xl mx-auto">
@@ -120,23 +162,23 @@ export const LoanConfirmation = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="opacity-90">Lender:</span>
-                <span className="font-semibold">{loan.lenderName}</span>
+                <span className="font-semibold">{application.lenderName}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="opacity-90">Loan Type:</span>
-                <span className="font-semibold capitalize">{loan.loanType}</span>
+                <span className="font-semibold capitalize">{application.loanType}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="opacity-90">Loan Amount:</span>
-                <span className="font-semibold">{formatCurrency(parseFloat(amount || '0'))}</span>
+                <span className="font-semibold">{formatCurrency(application.requestedAmount)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="opacity-90">Term:</span>
-                <span className="font-semibold">{term} years</span>
+                <span className="font-semibold">{application.requestedTerm} years</span>
               </div>
               <div className="flex justify-between items-center border-t border-white/20 pt-3 mt-3">
                 <span className="opacity-90">APR:</span>
-                <span className="text-2xl font-bold">{loan.apr}%</span>
+                <span className="text-2xl font-bold">{application.apr}%</span>
               </div>
             </div>
           </div>
@@ -145,13 +187,13 @@ export const LoanConfirmation = () => {
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Monthly Payment</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(loan.monthlyPayment)}
+                {formatCurrency(application.monthlyPayment)}
               </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600 mb-1">Total Interest</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(loan.totalInterest)}
+                {formatCurrency(application.totalInterest)}
               </p>
             </div>
           </div>

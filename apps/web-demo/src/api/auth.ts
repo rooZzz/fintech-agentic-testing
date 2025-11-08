@@ -151,11 +151,23 @@ export const createTestUser = async (): Promise<{ email: string; password: strin
   }
 };
 
+export interface Tradeline {
+  id: number;
+  creditor: string;
+  accountNumber: string;
+  type: 'Revolving' | 'Installment';
+  balance: number;
+  limit: number;
+  status: 'Open' | 'Closed';
+  paymentHistory: string;
+}
+
 export interface CreditReport {
   userId: string;
   creditScore: number;
   scoreRating: 'POOR' | 'FAIR' | 'GOOD' | 'VERY GOOD' | 'EXCELLENT';
   lastUpdated: string;
+  tradelines: Tradeline[];
 }
 
 export const getCreditReport = async (userId: string): Promise<CreditReport> => {

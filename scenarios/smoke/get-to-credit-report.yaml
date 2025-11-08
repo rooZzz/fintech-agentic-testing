@@ -1,8 +1,8 @@
 version: "0.1"
 id: get-to-credit-report
 goal:
-  description: "Login and view credit report page"
-  success: "User is viewing their credit report"
+  description: "Login and view the credit report page"
+  success: "User is on the /credit-report URL viewing their detailed credit report with tradelines"
 
 context:
   start_url: "http://localhost:5173/login"

@@ -11,6 +11,6 @@ preconditions:
   - instruction: "Create a test user with a plus plan"
 
 constraints:
-  max_steps: 20
+  max_steps: 6
   max_cost_usd: 0.50
 

@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '../../.env' });
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { 
@@ -11,10 +14,11 @@ import { browserManager } from './browser.js';
 import { ensureSessionsDir, getSessionPath, generateStateId } from './session.js';
 import { DebugLogger } from './debug-logger.js';
 import type { UINode } from './types.js';
-import { extractElementsInBrowser } from './browser-extract.js';
+import { ObserverService } from './observer-service.js';
 
 const PORT = 7001;
 const debug = new DebugLogger('MCP_WEB');
+const observerService = new ObserverService();
 
 function createMCPServer() {
   const server = new Server(
@@ -250,24 +254,32 @@ function createMCPServer() {
         }
         
         case 'ui.observe': {
-          const { contextId = 'default' } = args as any;
+          const { contextId = 'default', goal, lastAction, expectingValidation } = args as any;
           
           const ctx = await browserManager.getContext(contextId);
           if (!ctx) {
             throw new Error('No browser context found. Navigate to a URL first.');
           }
           
-          const nodes = await extractInteractiveElements(ctx.page, contextId);
+          const { sdom, sdelta } = await observerService.snapshot(ctx.page, contextId, {
+            goal,
+            lastAction,
+            expectingValidation
+          });
           
           result = {
-            nodes,
+            sdom,
+            sdelta,
             url: ctx.page.url(),
             title: await ctx.page.title()
           };
           
           debug.log(`Observation for context ${contextId}`, {
             url: ctx.page.url(),
-            nodeCount: nodes.length
+            interactiveCount: sdom.interactive.length,
+            feedbackCount: sdom.feedback.length,
+            deltaAdded: sdelta?.added.length || 0,
+            deltaRemoved: sdelta?.removed.length || 0
           });
           
           break;
@@ -304,7 +316,7 @@ function createMCPServer() {
         }
         
         case 'ui.act.type': {
-          const { nodeId, selector, testId, text, clear = false, contextId = 'default' } = args as any;
+          const { nodeId, selector, testId, text, clear = true, contextId = 'default' } = args as any;
           
           const ctx = await browserManager.getContext(contextId);
           if (!ctx) {
@@ -332,9 +344,9 @@ function createMCPServer() {
             await element.selectOption(text, { timeout: 5000 });
           } else {
             if (clear) {
-              await ctx.page.fill(targetSelector, '');
+              await element.clear({ timeout: 5000 });
             }
-            await ctx.page.type(targetSelector, text, { timeout: 5000 });
+            await element.fill(text, { timeout: 5000 });
           }
           
           result = {
@@ -459,6 +471,7 @@ function createMCPServer() {
           const { contextId = 'default' } = args as any;
           
           await browserManager.closeContext(contextId);
+          observerService.clearContext(contextId);
           
           result = {
             ok: true,
@@ -530,12 +543,6 @@ async function extractNodeInfo(el: ElementHandle, id: string, contextId: string)
     tagName: await el.evaluate((e) => e.tagName.toLowerCase()),
     ariaChecked
   };
-}
-
-async function extractInteractiveElements(page: any, contextId: string): Promise<UINode[]> {
-  const funcString = `(${extractElementsInBrowser.toString()})`;
-  const nodes = await page.evaluate(`${funcString}("${contextId}")`);
-  return nodes as UINode[];
 }
 
 const mcpServer = createMCPServer();

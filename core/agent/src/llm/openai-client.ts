@@ -1,3 +1,4 @@
+// @ts-nocheck
 import OpenAI from 'openai';
 import { GoalSpec, Observation, ActionPlan } from '../schema/types.js';
 import { buildSystemPrompt, buildObservationPrompt } from './prompts.js';

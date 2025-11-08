@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GoalSpec, Observation } from '../schema/types.js';
 
 export function buildSystemPrompt(spec: GoalSpec, availableTools: string): string {

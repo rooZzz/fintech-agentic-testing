@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     <AuthContext.Provider
       value={{
         session,
+        user: session?.user || null,
         isAuthenticated: !!session,
         login,
         logout,

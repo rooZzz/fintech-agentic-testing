@@ -9,6 +9,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@langchain/core": "^0.1.60",
+    "@langchain/langgraph": "^0.0.28",
+    "@langchain/openai": "^0.0.33",
     "@modelcontextprotocol/sdk": "^1.20.0",
     "ajv": "^8.12.0",
     "ajv-formats": "^3.0.1",
