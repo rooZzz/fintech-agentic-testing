@@ -167,12 +167,14 @@ export class AgenticWorkflow {
     const traceStore = state.traceStore as any;
     const allOutcomes = traceStore.outcomes ? Array.from(traceStore.outcomes.values()) : [];
     
-    const result = await this.goalChecker.check(
+    const { result, cost } = await this.goalChecker.check(
       state.goal,
       allOutcomes as any[],
       state.lastSDelta,
       state.currentUrl
     );
+
+    state.totalCost += cost;
 
     console.log(`\n🎯 Goal Check: ${result.goalMet ? 'MET' : 'NOT MET'} (confidence: ${result.confidence})`);
 
@@ -236,7 +238,7 @@ export class AgenticWorkflow {
       state.budgets
     );
 
-    const plan = await this.planner.plan(
+    const { plan, cost } = await this.planner.plan(
       state.plannerMode,
       state.goal,
       state.currentSDOM,
@@ -247,6 +249,8 @@ export class AgenticWorkflow {
       state.currentUrl,
       state.criticHint
     );
+
+    state.totalCost += cost;
 
     console.log(`\n📋 Plan (${plan.mode}): ${plan.reasoning}`);
     if (plan.action) {
@@ -333,6 +337,23 @@ export class AgenticWorkflow {
     state.currentTitle = immediateObservation.title;
     state.lastSDelta = immediateObservation.sdelta;
 
+    // Log step for UX metrics (entropy, optimality, etc.)
+    if (this.logger) {
+      this.logger.logStep({
+        step: state.history.length,
+        observation: {
+          url: immediateObservation.url || '',
+          title: immediateObservation.title || '',
+          nodeCount: immediateObservation.sdom.interactive.length + immediateObservation.sdom.content.length
+        },
+        action: lastPlan.action,
+        reasoning: lastPlan.reasoning,
+        result: result.success ? { success: true } : { success: false, error: result.error },
+        tokens: lastPlan.tokens,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     await this.waitForPageStabilization(state);
 
     return state;
@@ -358,7 +379,7 @@ export class AgenticWorkflow {
     try {
       console.log(`\n🔍 Validation:`);
       
-      const probeSpecs = await this.probePlanner.plan(
+      const { probes: probeSpecs, cost: probePlannerCost } = await this.probePlanner.plan(
         lastAction,
         state.currentSDOM,
         state.lastSDelta,
@@ -367,6 +388,8 @@ export class AgenticWorkflow {
         context.credentials,
         context.ids
       );
+
+      state.totalCost += probePlannerCost;
 
       const probeResults = await Promise.all(
         probeSpecs.map(async (spec) => {
@@ -382,7 +405,7 @@ export class AgenticWorkflow {
         })
       );
 
-      const outcome = await this.semanticValidator.validate(
+      const { outcome, cost: validatorCost } = await this.semanticValidator.validate(
         lastAction,
         state.goal,
         state.currentSDOM,
@@ -392,6 +415,8 @@ export class AgenticWorkflow {
         state.history.length,
         state.currentUrl
       );
+
+      state.totalCost += validatorCost;
 
       traceStore.addOutcome(outcome);
 

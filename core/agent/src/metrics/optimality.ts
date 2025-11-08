@@ -4,6 +4,13 @@ const OPTIMAL_PATHS: Record<string, number> = {
   'login-and-dashboard': 3,
   'get-to-dashboard': 3,
   'get-to-credit-report': 4,
+  'take-out-loan': 9,
+  'loan-invalid-then-valid': 11,
+  'update-name-and-loan': 8,
+  'update-profile-name': 6,
+  'credit-lock-enable': 5,
+  'credit-lock-disable': 5,
+  'credit-lock-persistence': 8,
 };
 
 export function calculateOptimality(

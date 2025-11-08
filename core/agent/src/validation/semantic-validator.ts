@@ -2,10 +2,22 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { Action, GoalSpec, SDOM, SDELTA, ValidationOutcome, ProbeResult } from '../schema/types.js';
 
+const PRICING: Record<string, { prompt: number; completion: number }> = {
+  'gpt-4o-mini': { prompt: 0.15, completion: 0.60 },
+  'gpt-4o': { prompt: 2.50, completion: 10.00 },
+};
+
 function getOpenAI() {
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || ''
   });
+}
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = PRICING[model] || PRICING['gpt-4o-mini'];
+  const promptCost = (promptTokens / 1_000_000) * pricing.prompt;
+  const completionCost = (completionTokens / 1_000_000) * pricing.completion;
+  return promptCost + completionCost;
 }
 
 const SemanticValidationSchema = z.object({
@@ -26,12 +38,13 @@ export class SemanticValidator {
     sharedMemory: Map<string, any>,
     stepNumber: number,
     currentUrl?: string | null
-  ): Promise<ValidationOutcome> {
+  ): Promise<{ outcome: ValidationOutcome; cost: number }> {
     const prompt = this.buildPrompt(action, goal, sdom, sdelta, probeResults, sharedMemory, currentUrl);
 
+    const model = 'gpt-4o-mini';
     const openai = getOpenAI();
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       temperature: 0,
       max_tokens: 1000,
       response_format: { type: 'json_object' },
@@ -118,38 +131,51 @@ Concerns: ["UI shows 'John Doe' but backend user.name is 'Jane Doe'"]`
       throw new Error('No response from SemanticValidator');
     }
 
+    const usage = response.usage;
+    if (!usage) {
+      throw new Error('No usage data from SemanticValidator');
+    }
+
+    const cost = calculateCost(model, usage.prompt_tokens, usage.completion_tokens);
+
     try {
       const result = SemanticValidationSchema.parse(JSON.parse(content));
       
       return {
-        id: `validation_${stepNumber}_${Date.now()}`,
-        timestamp: Date.now(),
-        stepNumber,
-        passed: result.passed,
-        confidence: result.confidence,
-        reasoning: result.reasoning,
-        evidence: result.evidence,
-        concerns: result.concerns,
-        probeResults,
-        url: currentUrl || undefined,
-        sdom,
-        sdelta
+        outcome: {
+          id: `validation_${stepNumber}_${Date.now()}`,
+          timestamp: Date.now(),
+          stepNumber,
+          passed: result.passed,
+          confidence: result.confidence,
+          reasoning: result.reasoning,
+          evidence: result.evidence,
+          concerns: result.concerns,
+          probeResults,
+          url: currentUrl || undefined,
+          sdom,
+          sdelta
+        },
+        cost
       };
     } catch (error) {
       console.error('Failed to parse SemanticValidator response:', content);
       return {
-        id: `validation_${stepNumber}_${Date.now()}`,
-        timestamp: Date.now(),
-        stepNumber,
-        passed: false,
-        confidence: 0,
-        reasoning: 'Failed to parse validation response',
-        evidence: [],
-        concerns: ['Validation parsing error'],
-        probeResults,
-        url: currentUrl || undefined,
-        sdom,
-        sdelta
+        outcome: {
+          id: `validation_${stepNumber}_${Date.now()}`,
+          timestamp: Date.now(),
+          stepNumber,
+          passed: false,
+          confidence: 0,
+          reasoning: 'Failed to parse validation response',
+          evidence: [],
+          concerns: ['Validation parsing error'],
+          probeResults,
+          url: currentUrl || undefined,
+          sdom,
+          sdelta
+        },
+        cost
       };
     }
   }

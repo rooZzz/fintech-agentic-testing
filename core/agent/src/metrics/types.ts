@@ -114,6 +114,7 @@ export interface ScenarioMetrics {
   totalCost: number;
   dataVerificationCount: number;
   verificationSteps: number[];
+  endTime: Date;
 }
 
 export interface AggregateMetrics {

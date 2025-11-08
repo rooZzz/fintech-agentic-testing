@@ -3,10 +3,13 @@ import { StepEntry, TimingMetric, ParsedScenario } from './types.js';
 export function calculateTiming(scenario: ParsedScenario): TimingMetric {
   const { steps, startTime, endTime } = scenario;
   
+  // Convert duration from milliseconds to seconds
+  const totalDurationSeconds = scenario.duration / 1000;
+  
   if (steps.length === 0) {
     return {
       timeToFirstAction: 0,
-      totalDuration: scenario.duration,
+      totalDuration: totalDurationSeconds,
       avgStepLatency: 0,
       stepLatencies: []
     };
@@ -27,7 +30,7 @@ export function calculateTiming(scenario: ParsedScenario): TimingMetric {
   
   return {
     timeToFirstAction,
-    totalDuration: scenario.duration,
+    totalDuration: totalDurationSeconds,
     avgStepLatency,
     stepLatencies
   };

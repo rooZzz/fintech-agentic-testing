@@ -1,47 +1,9 @@
-import { ReportData } from './types.js';
-
-function formatNumber(num: number, decimals: number = 2): string {
-  return num.toFixed(decimals);
-}
-
-function formatCurrency(amount: number): string {
-  return `$${amount.toFixed(4)}`;
-}
-
-function formatPercent(ratio: number): string {
-  return `${(ratio * 100).toFixed(1)}%`;
-}
-
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'success': return '#10b981';
-    case 'failure': return '#ef4444';
-    case 'error': return '#f59e0b';
-    default: return '#6b7280';
-  }
-}
-
-function getMetricColor(value: number, thresholds: { good: number; warning: number; }): string {
-  if (value <= thresholds.good) return '#10b981';
-  if (value <= thresholds.warning) return '#f59e0b';
-  return '#ef4444';
-}
-
-function getOptimalityColor(ratio: number): string {
-  if (ratio >= 0.75) return '#10b981';
-  if (ratio >= 0.5) return '#f59e0b';
-  return '#ef4444';
-}
-
-export function generateHTML(data: ReportData): string {
-  const { aggregate, scenarios } = data;
-  
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${data.title}</title>
+  <title>Agentic Testing Report</title>
   <style>
     * {
       margin: 0;
@@ -264,38 +226,38 @@ export function generateHTML(data: ReportData): string {
 <body>
   <div class="container">
     <header>
-      <h1>${data.title}</h1>
-      <p class="subtitle">Generated on ${data.generatedAt.toLocaleString()}</p>
+      <h1>Agentic Testing Report</h1>
+      <p class="subtitle">Generated on 08/11/2025, 15:27:51</p>
     </header>
     
     <div class="summary">
       <div class="metric-card">
         <div class="metric-label">Pass Rate</div>
-        <div class="metric-value ${aggregate.passRate >= 0.95 ? 'success' : aggregate.passRate >= 0.75 ? 'warning' : 'error'}">
-          ${formatPercent(aggregate.passRate)}
+        <div class="metric-value success">
+          100.0%
         </div>
       </div>
       
       <div class="metric-card">
         <div class="metric-label">Total Scenarios</div>
-        <div class="metric-value">${aggregate.totalScenarios}</div>
+        <div class="metric-value">1</div>
       </div>
       
       <div class="metric-card">
         <div class="metric-label">Median Steps</div>
-        <div class="metric-value ${aggregate.medianSteps <= 5 ? 'success' : aggregate.medianSteps <= 10 ? 'warning' : 'error'}">
-          ${formatNumber(aggregate.medianSteps, 0)}
+        <div class="metric-value warning">
+          8
         </div>
       </div>
       
       <div class="metric-card">
         <div class="metric-label">Median Duration</div>
-        <div class="metric-value">${formatNumber(aggregate.medianDuration, 1)}s</div>
+        <div class="metric-value">80.9s</div>
       </div>
       
       <div class="metric-card">
         <div class="metric-label">Total Cost</div>
-        <div class="metric-value">${formatCurrency(aggregate.totalCost)}</div>
+        <div class="metric-value">$0.0069</div>
       </div>
     </div>
     
@@ -304,38 +266,38 @@ export function generateHTML(data: ReportData): string {
       <div class="details-grid">
         <div class="detail-item">
           <div class="detail-label">Click Entropy</div>
-          <div class="detail-value" style="color: ${getMetricColor(aggregate.medianEntropy, { good: 2.5, warning: 3.5 })}">
-            ${formatNumber(aggregate.medianEntropy, 2)}
+          <div class="detail-value" style="color: #10b981">
+            1.58
           </div>
         </div>
         
         <div class="detail-item">
           <div class="detail-label">Backtracks</div>
-          <div class="detail-value" style="color: ${getMetricColor(aggregate.medianBacktracks, { good: 2, warning: 4 })}">
-            ${formatNumber(aggregate.medianBacktracks, 0)}
+          <div class="detail-value" style="color: #10b981">
+            2
           </div>
         </div>
         
         <div class="detail-item">
           <div class="detail-label">Path Optimality</div>
-          <div class="detail-value" style="color: ${getOptimalityColor(aggregate.medianOptimality)}">
-            ${formatPercent(aggregate.medianOptimality)}
+          <div class="detail-value" style="color: #10b981">
+            100.0%
           </div>
         </div>
         
         <div class="detail-item">
           <div class="detail-label">Success Count</div>
-          <div class="detail-value" style="color: #10b981">${aggregate.successCount}</div>
+          <div class="detail-value" style="color: #10b981">1</div>
         </div>
         
         <div class="detail-item">
           <div class="detail-label">Failure Count</div>
-          <div class="detail-value" style="color: #ef4444">${aggregate.failureCount}</div>
+          <div class="detail-value" style="color: #ef4444">0</div>
         </div>
         
         <div class="detail-item">
           <div class="detail-label">Error Count</div>
-          <div class="detail-value" style="color: #f59e0b">${aggregate.errorCount}</div>
+          <div class="detail-value" style="color: #f59e0b">0</div>
         </div>
       </div>
     </div>
@@ -366,27 +328,27 @@ export function generateHTML(data: ReportData): string {
           </tr>
         </thead>
         <tbody>
-          ${scenarios.map((scenario, index) => `
+          
             <tr class="expandable" onclick="this.classList.toggle('expanded')">
-              <td><strong>${scenario.scenarioId}</strong></td>
-              <td class="number" style="font-size: 0.85em; color: #6b7280;">${scenario.endTime.toLocaleString()}</td>
+              <td><strong>take-out-loan</strong></td>
+              <td class="number" style="font-size: 0.85em; color: #6b7280;">08/11/2025, 15:27:39</td>
               <td>
-                <span class="status-badge status-${scenario.status}">
-                  ${scenario.status}
+                <span class="status-badge status-success">
+                  success
                 </span>
               </td>
-              <td class="number">${scenario.totalSteps}</td>
-              <td class="number">${formatNumber(scenario.timing.totalDuration, 2)}s</td>
-              <td class="number" style="color: ${getMetricColor(scenario.entropy.value, { good: 2.5, warning: 3.5 })}">
-                ${formatNumber(scenario.entropy.value, 2)}
+              <td class="number">8</td>
+              <td class="number">80.88s</td>
+              <td class="number" style="color: #10b981">
+                1.58
               </td>
-              <td class="number" style="color: ${getMetricColor(scenario.backtracks.count, { good: 2, warning: 4 })}">
-                ${scenario.backtracks.count}
+              <td class="number" style="color: #10b981">
+                2
               </td>
-              <td class="number" style="color: ${getOptimalityColor(scenario.optimality.ratio)}">
-                ${formatPercent(scenario.optimality.ratio)}
+              <td class="number" style="color: #10b981">
+                100.0%
               </td>
-              <td class="number">${formatCurrency(scenario.totalCost)}</td>
+              <td class="number">$0.0069</td>
             </tr>
             <tr class="expandable-content">
               <td colspan="9">
@@ -395,56 +357,49 @@ export function generateHTML(data: ReportData): string {
                   <div class="details-grid">
                     <div class="detail-item">
                       <div class="detail-label">Run ID</div>
-                      <div class="detail-value" style="font-size: 0.875rem;">${scenario.runId}</div>
+                      <div class="detail-value" style="font-size: 0.875rem;">run_1762615578143</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Time to First Action</div>
-                      <div class="detail-value">${formatNumber(scenario.timing.timeToFirstAction, 2)}s</div>
+                      <div class="detail-value">7.87s</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Avg Step Latency</div>
-                      <div class="detail-value">${formatNumber(scenario.timing.avgStepLatency, 2)}s</div>
+                      <div class="detail-value">8.42s</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Total Interactions</div>
-                      <div class="detail-value">${scenario.entropy.totalInteractions}</div>
+                      <div class="detail-value">3</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Optimal Steps</div>
-                      <div class="detail-value">${scenario.optimality.optimalSteps}</div>
+                      <div class="detail-value">9</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Actual Steps</div>
-                      <div class="detail-value">${scenario.optimality.actualSteps}</div>
+                      <div class="detail-value">8</div>
                     </div>
                     <div class="detail-item">
                       <div class="detail-label">Data Verifications</div>
-                      <div class="detail-value" style="color: ${scenario.dataVerificationCount > 0 ? '#10b981' : '#6b7280'}">
-                        🔍 ${scenario.dataVerificationCount}
+                      <div class="detail-value" style="color: #6b7280">
+                        🔍 0
                       </div>
                     </div>
                   </div>
-                  ${scenario.dataVerificationCount > 0 ? `
-                    <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">Verification Steps</h4>
-                    <div style="color: #6b7280; font-size: 0.875rem;">
-                      Agent performed data verification at steps: ${scenario.verificationSteps.join(', ')}
-                    </div>
-                  ` : ''}
-                  ${scenario.backtracks.urlHistory.length > 0 ? `
+                  
+                  
                     <h4 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">URL History</h4>
                     <ol style="padding-left: 1.5rem; color: #6b7280; font-size: 0.875rem;">
-                      ${scenario.backtracks.urlHistory.map(url => `<li>${url}</li>`).join('')}
+                      <li>http://localhost:5173/login</li><li>http://localhost:5173/login</li><li>http://localhost:5173/dashboard</li><li>http://localhost:5173/loans</li><li>http://localhost:5173/loans</li><li>http://localhost:5173/loans</li><li>http://localhost:5173/loans</li><li>http://localhost:5173/loans/results?amount=25000&term=5&loanType=personal</li>
                     </ol>
-                  ` : ''}
+                  
                 </div>
               </td>
             </tr>
-          `).join('')}
+          
         </tbody>
       </table>
     </div>
   </div>
 </body>
-</html>`;
-}
-
+</html>

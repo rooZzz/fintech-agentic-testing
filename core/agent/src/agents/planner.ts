@@ -2,10 +2,22 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { GoalSpec, SDOM, SDELTA, ValidationOutcome, PlannerMode, ActionPlan } from '../schema/types.js';
 
+const PRICING: Record<string, { prompt: number; completion: number }> = {
+  'gpt-4o-mini': { prompt: 0.15, completion: 0.60 },
+  'gpt-4o': { prompt: 2.50, completion: 10.00 },
+};
+
 function getOpenAI() {
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || ''
   });
+}
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = PRICING[model] || PRICING['gpt-4o-mini'];
+  const promptCost = (promptTokens / 1_000_000) * pricing.prompt;
+  const completionCost = (completionTokens / 1_000_000) * pricing.completion;
+  return promptCost + completionCost;
 }
 
 const ActionPlanSchema = z.object({
@@ -30,12 +42,13 @@ export class Planner {
     ids: Record<string, string>,
     currentUrl?: string | null,
     criticHint?: string
-  ): Promise<ActionPlan> {
+  ): Promise<{ plan: ActionPlan; cost: number }> {
     const prompt = this.buildPrompt(mode, goal, sdom, sdelta, recentOutcomes, credentials, ids, currentUrl, criticHint);
 
+    const model = 'gpt-4o-mini';
     const openai = getOpenAI();
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       temperature: 0,
       max_tokens: 800,
       response_format: { type: 'json_object' },
@@ -56,14 +69,24 @@ export class Planner {
       throw new Error('No response from Planner');
     }
 
+    const usage = response.usage;
+    if (!usage) {
+      throw new Error('No usage data from Planner');
+    }
+
+    const cost = calculateCost(model, usage.prompt_tokens, usage.completion_tokens);
+
     try {
       const parsed = ActionPlanSchema.parse(JSON.parse(content));
       return {
-        mode: parsed.mode,
-        reasoning: parsed.reasoning,
-        action: parsed.action as any,
-        evidence_claims: parsed.evidence_claims,
-        success_signals: parsed.success_signals
+        plan: {
+          mode: parsed.mode,
+          reasoning: parsed.reasoning,
+          action: parsed.action as any,
+          evidence_claims: parsed.evidence_claims,
+          success_signals: parsed.success_signals
+        },
+        cost
       };
     } catch (error) {
       console.error('Failed to parse Planner response:', content);

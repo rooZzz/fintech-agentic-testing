@@ -30,7 +30,8 @@ export function analyzeScenario(scenario: ParsedScenario): ScenarioMetrics {
     totalSteps: scenario.totalSteps,
     totalCost: scenario.totalCost,
     dataVerificationCount,
-    verificationSteps
+    verificationSteps,
+    endTime: scenario.endTime
   };
 }
 
@@ -44,6 +45,10 @@ export function analyzeScenarioFile(filePath: string): ScenarioMetrics {
 
 export function analyzeMultipleScenarios(filePaths: string[]): AggregateMetrics {
   const scenarios = parseMultipleScenarios(filePaths);
+  
+  // Sort by end time in descending order (newest first)
+  scenarios.sort((a, b) => b.endTime.getTime() - a.endTime.getTime());
+  
   const metrics = scenarios.map(analyzeScenario);
   
   const successCount = metrics.filter(m => m.status === 'success').length;

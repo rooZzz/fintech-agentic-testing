@@ -2,10 +2,22 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { GoalSpec, ValidationOutcome, SDELTA } from '../schema/types.js';
 
+const PRICING: Record<string, { prompt: number; completion: number }> = {
+  'gpt-4o-mini': { prompt: 0.15, completion: 0.60 },
+  'gpt-4o': { prompt: 2.50, completion: 10.00 },
+};
+
 function getOpenAI() {
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || ''
   });
+}
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = PRICING[model] || PRICING['gpt-4o-mini'];
+  const promptCost = (promptTokens / 1_000_000) * pricing.prompt;
+  const completionCost = (completionTokens / 1_000_000) * pricing.completion;
+  return promptCost + completionCost;
 }
 
 const GoalCheckSchema = z.object({
@@ -28,12 +40,13 @@ export class GoalChecker {
     recentOutcomes: ValidationOutcome[],
     sdelta: SDELTA | null,
     currentUrl?: string | null
-  ): Promise<GoalCheckResult> {
+  ): Promise<{ result: GoalCheckResult; cost: number }> {
     const prompt = this.buildPrompt(goal, recentOutcomes, sdelta, currentUrl);
 
+    const model = 'gpt-4o-mini';
     const openai = getOpenAI();
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       temperature: 0,
       max_tokens: 500,
       response_format: { type: 'json_object' },
@@ -93,15 +106,25 @@ Return JSON: {"goalMet": boolean, "confidence": 0-1, "reasoning": "...", "sugges
       throw new Error('No response from GoalChecker');
     }
 
+    const usage = response.usage;
+    if (!usage) {
+      throw new Error('No usage data from GoalChecker');
+    }
+
+    const cost = calculateCost(model, usage.prompt_tokens, usage.completion_tokens);
+
     try {
       const result = GoalCheckSchema.parse(JSON.parse(content));
-      return result;
+      return { result, cost };
     } catch (error) {
       console.error('Failed to parse GoalChecker response:', content);
       return {
-        goalMet: false,
-        confidence: 0,
-        reasoning: 'Failed to parse goal check result'
+        result: {
+          goalMet: false,
+          confidence: 0,
+          reasoning: 'Failed to parse goal check result'
+        },
+        cost
       };
     }
   }

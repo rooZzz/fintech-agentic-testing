@@ -2,10 +2,22 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { ProbeSpec, Action, GoalSpec, SDOM, SDELTA } from '../schema/types.js';
 
+const PRICING: Record<string, { prompt: number; completion: number }> = {
+  'gpt-4o-mini': { prompt: 0.15, completion: 0.60 },
+  'gpt-4o': { prompt: 2.50, completion: 10.00 },
+};
+
 function getOpenAI() {
   return new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || ''
   });
+}
+
+function calculateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = PRICING[model] || PRICING['gpt-4o-mini'];
+  const promptCost = (promptTokens / 1_000_000) * pricing.prompt;
+  const completionCost = (completionTokens / 1_000_000) * pricing.completion;
+  return promptCost + completionCost;
 }
 
 const ProbePlanSchema = z.object({
@@ -25,16 +37,17 @@ export class ProbePlanner {
     probeRegistryTools: string,
     credentials: Record<string, any>,
     ids: Record<string, string>
-  ): Promise<ProbeSpec[]> {
+  ): Promise<{ probes: ProbeSpec[]; cost: number }> {
     if (!probeRegistryTools || probeRegistryTools.trim().length === 0) {
-      return [];
+      return { probes: [], cost: 0 };
     }
 
     const prompt = this.buildPrompt(action, sdom, sdelta, goal, probeRegistryTools, credentials, ids);
 
+    const model = 'gpt-4o-mini';
     const openai = getOpenAI();
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model,
       temperature: 0,
       max_tokens: 800,
       response_format: { type: 'json_object' },
@@ -88,16 +101,23 @@ Return JSON with empty array if no probes needed:
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      return [];
+      return { probes: [], cost: 0 };
     }
+
+    const usage = response.usage;
+    if (!usage) {
+      throw new Error('No usage data from ProbePlanner');
+    }
+
+    const cost = calculateCost(model, usage.prompt_tokens, usage.completion_tokens);
 
     try {
       const plan = ProbePlanSchema.parse(JSON.parse(content));
       console.log(`   Probe Plan: ${plan.probes.length} backend probes`);
-      return plan.probes;
+      return { probes: plan.probes, cost };
     } catch (error) {
       console.error('Failed to parse ProbePlanner response:', content);
-      return [];
+      return { probes: [], cost };
     }
   }
 
