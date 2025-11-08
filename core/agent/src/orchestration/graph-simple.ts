@@ -371,12 +371,8 @@ export class AgenticWorkflow {
       const probeResults = await Promise.all(
         probeSpecs.map(async (spec) => {
           console.log(`   • Probe: ${spec.tool}`);
-          console.log(`     Params: ${JSON.stringify(spec.params)}`);
           const result = await this.probeBroker.execute(spec, state.sharedMemory);
           console.log(`     ${result.passed ? '✓' : '✗'} ${result.passed ? 'Success' : result.error || 'Failed'}`);
-          if (result.passed && result.response) {
-            console.log(`     Response: ${JSON.stringify(result.response).substring(0, 200)}`);
-          }
           return {
             tool: spec.tool,
             success: result.passed,
